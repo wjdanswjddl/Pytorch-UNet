@@ -152,13 +152,10 @@ if __name__ == "__main__":
     for i, fn in enumerate(in_files):
         print("\nPredicting image {} ...".format(fn))
 
-        # img = Image.open(fn)
-        img = h5u.load(fn, 0, ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0'])
-        img = h5u.rebin(img,[img.shape[0]//1,img.shape[1]//10])
-        img = img[0:800,0:600,:]
-        img = img/4000
+        im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
+        im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
 
-        img = h5u.get_hwc_img(fn, args.event, ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0'], [1, 10], [0, 800], [0, 600], 4000)
+        img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [0, 800], [0, 600], 4000)
 
         print(img.shape)
         if img.shape[0] < img.shape[1]:

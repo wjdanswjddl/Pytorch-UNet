@@ -62,14 +62,17 @@ def train_net(net,
         net.train()
 
         # reset the generators
+        im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
+        im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
+        ma_tags = ['frame_ductor0']
 
         train = zip(
-          h5u.get_chw_imgs(file_img, iddataset['train'], ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0'], [1, 10], [0, 800], [0, 600], 4000),
-          h5u.get_masks(file_mask, iddataset['train'], ['frame_ductor0'], [1, 10], [0, 800], [0, 600], 0)
+          h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, [1, 10], [0, 800], [0, 600], 4000),
+          h5u.get_masks(file_mask, iddataset['train'], ma_tags, [1, 10], [0, 800], [0, 600], 0)
         )
         val = zip(
-          h5u.get_chw_imgs(file_img, iddataset['val'], ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0'], [1, 10], [0, 800], [0, 600], 4000),
-          h5u.get_masks(file_mask, iddataset['val'], ['frame_ductor0'], [1, 10], [0, 800], [0, 600], 0)
+          h5u.get_chw_imgs(file_img, iddataset['val'], im_tags, [1, 10], [0, 800], [0, 600], 4000),
+          h5u.get_masks(file_mask, iddataset['val'], ma_tags, [1, 10], [0, 800], [0, 600], 0)
         )
 
         # for img, mask in train:
