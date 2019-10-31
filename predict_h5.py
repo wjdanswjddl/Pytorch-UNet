@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import argparse
 import os
 
@@ -10,7 +12,7 @@ from PIL import Image
 from unet import UNet
 from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks, dense_crf
 from utils import plot_img_and_mask
-from utils import load_h5, plot_h5_and_mask
+from utils import h5_utils as h5u
 from matplotlib import cm
 
 from torchvision import transforms
@@ -28,8 +30,6 @@ def predict_img(net,
 
     # img = resize_and_crop(full_img, scale=scale_factor)
     img = full_img
-    # img = normalize(img)
-    img = img/4000
 
     left_square, right_square = split_img_into_squares(img)
 
@@ -100,6 +100,9 @@ def get_args():
     parser.add_argument('--mask-threshold', '-t', type=float,
                         help="Minimum probability value to consider a mask pixel white",
                         default=0.5)
+    parser.add_argument('--event', '-e', type=int,
+                        help="Event to be processed",
+                        default=0)
     parser.add_argument('--scale', '-s', type=float,
                         help="Scale factor for the input images",
                         default=0.5)
@@ -150,10 +153,13 @@ if __name__ == "__main__":
         print("\nPredicting image {} ...".format(fn))
 
         # img = Image.open(fn)
-        img = load_h5(fn, 0, 'frame_tight_lf0', 'frame_loose_lf0')
-        print(type(img))
-        print(img.shape)
-        img = img[0:800,4000:4500,:]
+        img = h5u.load(fn, 0, ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0'])
+        img = h5u.rebin(img,[img.shape[0]//1,img.shape[1]//10])
+        img = img[0:800,0:600,:]
+        img = img/4000
+
+        img = h5u.get_hwc_img(fn, args.event, ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0'], [1, 10], [0, 800], [0, 600], 4000)
+
         print(img.shape)
         if img.shape[0] < img.shape[1]:
             print("Error: image height larger than the width")
@@ -167,7 +173,7 @@ if __name__ == "__main__":
 
         if args.viz:
             print("Visualizing results for image {}, close to continue ...".format(fn))
-            plot_h5_and_mask(img, mask)
+            h5u.plot_and_mask(img, mask)
 
         if not args.no_save:
             out_fn = out_files[i]
