@@ -70,6 +70,9 @@ def predict_img(net,
     if use_dense_crf:
         full_mask = dense_crf(np.array(full_img).astype(np.uint8), full_mask)
 
+    if out_threshold < 0:
+      return full_mask
+      
     return full_mask > out_threshold
 
 
@@ -154,8 +157,13 @@ if __name__ == "__main__":
 
         im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
         im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
+        # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_loose_lf0']
 
-        img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [0, 800], [0, 600], 4000)
+        # img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [0, 800], [0, 600], 4000) # U
+        img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
+
+        # img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 1], [0, 800], [4200,4800], 4000) # U
+        # img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 1], [800, 1600], [4200, 4800], 4000) # V
 
         print(img.shape)
         if img.shape[0] < img.shape[1]:

@@ -28,8 +28,8 @@ def train_net(net,
     dir_mask = 'data/train_masks/'
     dir_checkpoint = 'checkpoints/'
 
-    file_img  = 'test/g4-rec-0.h5'
-    file_mask = 'test/g4-tru-0.h5'
+    file_img  = 'data/g4-rec-0.h5'
+    file_mask = 'data/g4-tru-0.h5'
 
     ids = list(np.arange(100))
 
@@ -57,28 +57,38 @@ def train_net(net,
 
     criterion = nn.BCELoss()
 
+    # reset the generators
+    im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
+    im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
+    im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_loose_lf0']
+    ma_tags = ['frame_ductor0']
+    truth_th = 50
+
+    print('''
+    file_img: {}
+    file_mask: {}
+    im_tags: {}
+    ma_tags: {}
+    truth_th: {}
+    '''.format(file_img, file_mask, im_tags,ma_tags,truth_th))
+
     for epoch in range(epochs):
         print('Starting epoch {}/{}.'.format(epoch + 1, epochs))
         net.train()
 
-        # reset the generators
-        im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
-        im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
-        ma_tags = ['frame_ductor0']
-
         train = zip(
           h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, [1, 10], [0, 800], [0, 600], 4000),
-          h5u.get_masks(file_mask, iddataset['train'], ma_tags, [1, 10], [0, 800], [0, 600], 0)
+          h5u.get_masks(file_mask, iddataset['train'], ma_tags, [1, 10], [0, 800], [0, 600], truth_th)
         )
         val = zip(
           h5u.get_chw_imgs(file_img, iddataset['val'], im_tags, [1, 10], [0, 800], [0, 600], 4000),
-          h5u.get_masks(file_mask, iddataset['val'], ma_tags, [1, 10], [0, 800], [0, 600], 0)
+          h5u.get_masks(file_mask, iddataset['val'], ma_tags, [1, 10], [0, 800], [0, 600], truth_th)
         )
 
         # for img, mask in train:
         #   print(img.shape)
         #   print(mask.shape)
-        #   h5u.plot_and_mask(img, mask)
+        #   h5u.plot_and_mask(np.transpose(img, axes=[1, 2, 0]), mask)
         # continue
 
         epoch_loss = 0
@@ -114,16 +124,22 @@ def train_net(net,
             loss.backward()
             optimizer.step()
 
+            if save_cp and i%20==0:
+                torch.save(net.state_dict(),
+                          dir_checkpoint + 'CP{}-{}.pth'.format(epoch + 1,i+1))
+                print('Checkpoint e{}b{} saved !'.format(epoch + 1,i+1))
+
         print('Epoch finished ! Loss: {}'.format(epoch_loss / i))
+
+        if save_cp:
+            torch.save(net.state_dict(),
+                      dir_checkpoint + 'CP{}-{}.pth'.format(epoch + 1,i+1))
+            print('Checkpoint e{} saved !'.format(epoch + 1))
 
         if False:
             val_dice = eval_net(net, val, gpu)
             print('Validation Dice Coeff: {}'.format(val_dice))
 
-        if save_cp:
-            torch.save(net.state_dict(),
-                       dir_checkpoint + 'CP{}.pth'.format(epoch + 1))
-            print('Checkpoint {} saved !'.format(epoch + 1))
 
 
 

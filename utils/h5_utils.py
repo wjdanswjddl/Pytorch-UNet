@@ -26,14 +26,31 @@ def rebin(a, shape):
 def plot_and_mask(img, mask):
   fig = plt.figure()
   a = fig.add_subplot(1, 2, 1)
-  a.set_title('Image')
-  plt.imshow(np.transpose(img, axes=[1, 0, 2]), origin='lower')
+  a.set_title('Tight LF')
+  plt.imshow(np.transpose(img[:,:,0], axes=[1, 0]), cmap="jet", origin='lower')
+  # plt.colorbar()
+  plt.grid()
 
-  b = fig.add_subplot(1, 2, 2)
-  b.set_title('Mask')
-  plt.imshow(np.transpose(mask, axes=[1, 0]), origin='lower')
-  print("Mask non-zero",np.count_nonzero(mask))
-  # print(mask[0:10,0:10])
+  a = fig.add_subplot(1, 2, 2)
+  a.set_title('Loose LF')
+  plt.imshow(np.transpose(img[:,:,2], axes=[1, 0]), cmap="jet", origin='lower')
+  # plt.colorbar()
+  plt.grid()
+
+  fig = plt.figure()
+  # a = fig.add_subplot(1, 2, 1)
+  # a.set_title('Image')
+  # plt.imshow(np.transpose(img, axes=[1, 0, 2]), origin='lower')
+
+  # b = fig.add_subplot(1, 2, 2)
+  # b.set_title('Mask')
+  plt.imshow(np.transpose(mask, axes=[1, 0])
+  , origin='lower'
+  # , aspect='auto'
+  )
+  # print("Mask non-zero",np.count_nonzero(mask))
+  # plt.colorbar()
+  plt.grid()
   plt.show()
 
 def get_hwc_img(file, event, tags, scale, crop0, crop1, norm):
@@ -62,6 +79,6 @@ def get_masks(file, events, tags, scale, crop0, crop1, threshold):
     im = im.reshape(im.shape[0],im.shape[1])
     im = rebin(im, [im.shape[0]//scale[0],im.shape[1]//scale[1]])
     im = im[crop0[0]:crop0[1], crop1[0]:crop1[1]]
-    im[im>threshold] = 1
     im[im<=threshold] = 0
+    im[im>threshold] = 1
     yield im
