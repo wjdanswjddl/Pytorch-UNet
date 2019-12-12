@@ -29,4 +29,5 @@ class UNet(nn.Module):
         x = self.up3(x, x2)
         x = self.up4(x, x1)
         x = self.outc(x)
-        return F.sigmoid(x)
+        # return F.sigmoid(x)
+        return torch.sigmoid(x)
