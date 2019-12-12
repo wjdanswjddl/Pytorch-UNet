@@ -58,11 +58,14 @@ def train_net(net,
     criterion = nn.BCELoss()
 
     # reset the generators
-    im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
-    im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
-    im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_loose_lf0']
+    # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
+    # im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
+    # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_mp_roi0']    # tl3
+    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    # im_tags = ['frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # t23
+    # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_mp2_roi0']   # tl2
     ma_tags = ['frame_ductor0']
-    truth_th = 50
+    truth_th = 100
 
     print('''
     file_img: {}
@@ -77,12 +80,12 @@ def train_net(net,
         net.train()
 
         train = zip(
-          h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, [1, 10], [0, 800], [0, 600], 4000),
-          h5u.get_masks(file_mask, iddataset['train'], ma_tags, [1, 10], [0, 800], [0, 600], truth_th)
+          h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, [1, 10], [800, 1600], [0, 600], 4000),
+          h5u.get_masks(file_mask, iddataset['train'], ma_tags, [1, 10], [800, 1600], [0, 600], truth_th)
         )
         val = zip(
-          h5u.get_chw_imgs(file_img, iddataset['val'], im_tags, [1, 10], [0, 800], [0, 600], 4000),
-          h5u.get_masks(file_mask, iddataset['val'], ma_tags, [1, 10], [0, 800], [0, 600], truth_th)
+          h5u.get_chw_imgs(file_img, iddataset['val'], im_tags, [1, 10], [800, 1600], [0, 600], 4000),
+          h5u.get_masks(file_mask, iddataset['val'], ma_tags, [1, 10], [800, 1600], [0, 600], truth_th)
         )
 
         # for img, mask in train:

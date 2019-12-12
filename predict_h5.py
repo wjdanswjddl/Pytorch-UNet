@@ -137,6 +137,8 @@ if __name__ == "__main__":
     in_files = args.input
     out_files = get_output_filenames(args)
 
+    torch.set_num_threads(1)
+
     net = UNet(n_channels=3, n_classes=1)
 
     print("Loading model {}".format(args.model))
@@ -155,26 +157,31 @@ if __name__ == "__main__":
     for i, fn in enumerate(in_files):
         print("\nPredicting image {} ...".format(fn))
 
-        im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
-        im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
-        # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_loose_lf0']
+        # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
+        # im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
+        im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_mp3_roi0']    # tl3
+        # im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+        # im_tags = ['frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # t23
+        # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_mp2_roi0']   # tl2
 
-        # img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [0, 800], [0, 600], 4000) # U
-        img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
+        # events = list(np.arange(10))
+        # for event in events:
+          # img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [0, 800], [0, 600], 4000) # U
 
-        # img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 1], [0, 800], [4200,4800], 4000) # U
-        # img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 1], [800, 1600], [4200, 4800], 4000) # V
+        # img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [0, 800], [0, 6000], 4000) # U
+        img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [800, 1600], [0, 6000], 4000) # V
+        # img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 1], [800, 1600], [4200, 4800], 4000) # V partial ticks
 
         print(img.shape)
         if img.shape[0] < img.shape[1]:
             print("Error: image height larger than the width")
 
         mask = predict_img(net=net,
-                           full_img=img,
-                           scale_factor=args.scale,
-                           out_threshold=args.mask_threshold,
-                           use_dense_crf= not args.no_crf,
-                           use_gpu=not args.cpu)
+                          full_img=img,
+                          scale_factor=args.scale,
+                          out_threshold=args.mask_threshold,
+                          use_dense_crf= not args.no_crf,
+                          use_gpu=not args.cpu)
 
         if args.viz:
             print("Visualizing results for image {}, close to continue ...".format(fn))
@@ -185,4 +192,4 @@ if __name__ == "__main__":
             result = mask_to_image(mask)
             result.save(out_files[i])
 
-            print("Mask saved to {}".format(out_files[i]))
+            print("Mask saved to {}".format(out_files[i]))                
