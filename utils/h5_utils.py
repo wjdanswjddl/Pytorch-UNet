@@ -25,15 +25,24 @@ def rebin(a, shape):
 
 def plot_and_mask(img, mask):
   fig = plt.figure()
-  a = fig.add_subplot(1, 2, 1)
-  a.set_title('Tight LF')
-  plt.imshow(np.transpose(img[:,:,0], axes=[1, 0]), cmap="jet", origin='lower')
+  a = fig.add_subplot(1, 3, 1)
+  a.set_title('CH1')
+  frame_ma = np.ma.array(np.transpose(img[:,:,0], axes=[1, 0]))
+  plt.imshow(np.ma.masked_where(frame_ma<=0,frame_ma), cmap="jet", origin='lower')
   # plt.colorbar()
   plt.grid()
 
-  a = fig.add_subplot(1, 2, 2)
-  a.set_title('Loose LF')
-  plt.imshow(np.transpose(img[:,:,2], axes=[1, 0]), cmap="jet", origin='lower')
+  a = fig.add_subplot(1, 3, 2)
+  a.set_title('CH2')
+  frame_ma = np.ma.array(np.transpose(img[:,:,1], axes=[1, 0]))
+  plt.imshow(np.ma.masked_where(frame_ma<=0,frame_ma), cmap="jet", origin='lower')
+  # plt.colorbar()
+  plt.grid()
+
+  a = fig.add_subplot(1, 3, 3)
+  a.set_title('CH3')
+  frame_ma = np.ma.array(np.transpose(img[:,:,2], axes=[1, 0]))
+  plt.imshow(np.ma.masked_where(frame_ma<=0,frame_ma), cmap="jet", origin='lower')
   # plt.colorbar()
   plt.grid()
 
