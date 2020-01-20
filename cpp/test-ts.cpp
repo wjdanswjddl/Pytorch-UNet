@@ -67,12 +67,12 @@ int main(int argc, const char* argv[]) {
   // cout << img << endl;
   // cout << batch << endl;
 
-  return 0;
+  // return 0;
 
   // Create a vector of inputs.
   std::vector<torch::jit::IValue> inputs;
-  // inputs.push_back(torch::rand({1, 3, 800, 600}, torch::dtype(torch::kFloat32).device(torch::kCUDA, 0)));
-  inputs.push_back(batch.cuda());
+  inputs.push_back(torch::rand({1, 3, 800, 600}, torch::dtype(torch::kFloat32).device(torch::kCUDA, 0)));
+  // inputs.push_back(batch.cuda());
 
   // Execute the model and turn its output into a tensor.
   at::Tensor output = module.forward(inputs).toTensor().cpu();
@@ -83,7 +83,8 @@ int main(int argc, const char* argv[]) {
   std::cout << output[0][0][0][4] << '\n';
   std::cout << output.sizes() << '\n';
 
-  Eigen::Map<Eigen::ArrayXXf> out_e(output[0][0].data_ptr<float>(), output.size(3), output.size(2));
+  // Eigen::Map<Eigen::ArrayXXf> out_e(output[0][0].data_ptr<float>(), output.size(3), output.size(2));
+  Eigen::Map<Eigen::ArrayXXf> out_e(output[0][0].data<float>(), output.size(3), output.size(2));
   std::cout << "EigenMat:\n" << out_e.cols() << ", " << out_e.rows() << std::endl;
   std::cout << out_e(0,0) << std::endl;
   std::cout << out_e(1,0) << std::endl;
