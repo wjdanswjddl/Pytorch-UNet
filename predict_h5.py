@@ -10,7 +10,9 @@ import torch.nn.functional as F
 from PIL import Image
 
 from unet import UNet
-from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks, dense_crf
+from uresnet import UResNet
+from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks
+# from utils import dense_crf
 from utils import plot_img_and_mask
 from utils import h5_utils as h5u
 from matplotlib import cm
@@ -189,7 +191,7 @@ if __name__ == "__main__":
 
         img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [800, 1600], [0, 6000], 4000) # V
        
-        events = list(np.arange(3,10))
+        events = list(np.arange(1,10))
         for event in events:
           img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
 

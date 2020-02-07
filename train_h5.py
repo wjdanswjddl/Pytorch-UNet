@@ -12,6 +12,7 @@ from torch import optim
 
 from eval import eval_net
 from unet import UNet
+from uresnet import UResNet
 from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
 from utils import h5_utils as h5u
 
@@ -70,7 +71,7 @@ def train_net(net,
     truth_th: {}
     '''.format(im_tags,ma_tags,truth_th))
 
-    for epoch in range(5,epochs):
+    for epoch in range(0,epochs):
 
         file_img  = 'data/cosmic-rec-0.h5'
         file_mask = 'data/cosmic-tru-0.h5'
@@ -174,7 +175,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
 
-    net = UNet(n_channels=3, n_classes=1)
+    net = UResNet(n_channels=3, n_classes=1)
 
     if args.load:
         net.load_state_dict(torch.load(args.load))

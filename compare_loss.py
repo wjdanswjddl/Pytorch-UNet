@@ -9,8 +9,8 @@ import numpy as np
 
 # tags   = ['simchan-tune-ttl-th0/loss','simchan-tune-ttl-th50/loss','simchan-tune-ttl-th100/loss', 'mp-roi-test-1-scale-th100/loss', 'loss']
 # labels = ['TH: 0','TH: 50','TH: 100', 'MP3', 'MP2+MP3']
-tags   = ['l23-cosmic500-e50/loss']
-labels = ['l23: 500 x 50']
+tags   = ['l23-cosmic500-e50/loss', 'model-uresnet-512/loss']
+labels = ['UNet-1024', 'UResNet-512']
 dfs = [pd.read_csv(tag+'.csv', sep=' ', header=None) for tag in tags]
 
 epoch = 50
