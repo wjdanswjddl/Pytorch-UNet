@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 import os
 from optparse import OptionParser
@@ -10,13 +12,15 @@ from torch import optim
 
 from eval import eval_net
 from unet import UNet
+from uresnet import UResNet
 from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
+from utils import h5_utils as h5u
 
 def train_net(net,
               epochs=5,
-              batch_size=1,
+              batch_size=10,
               lr=0.1,
-              val_percent=0.05,
+              val_percent=0.10,
               save_cp=True,
               gpu=False,
               img_scale=0.5):
@@ -25,10 +29,10 @@ def train_net(net,
     dir_mask = 'data/train_masks/'
     dir_checkpoint = 'checkpoints/'
 
-    ids = get_ids(dir_img)
-    ids = split_ids(ids)
+    ids = list(np.arange(500))
 
     iddataset = split_train_val(ids, val_percent)
+    print(iddataset['train'])
 
     print('''
     Starting training:
@@ -51,19 +55,62 @@ def train_net(net,
 
     criterion = nn.BCELoss()
 
-    for epoch in range(epochs):
+    # reset the generators
+    # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_gauss0']
+    # im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']
+    # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_mp_roi0']    # tl3
+    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    # im_tags = ['frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # t23
+    # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_mp2_roi0']   # tl2
+    ma_tags = ['frame_ductor0']
+    truth_th = 100
+
+    print('''
+    im_tags: {}
+    ma_tags: {}
+    truth_th: {}
+    '''.format(im_tags,ma_tags,truth_th))
+
+    for epoch in range(0,epochs):
+
+        file_img  = 'data/cosmic-rec-0.h5'
+        file_mask = 'data/cosmic-tru-0.h5'
+        # if epoch % 2 != 0 :
+        #   file_img  = 'data/mu-rec-0.h5'
+        #   file_mask = 'data/mu-tru-0.h5'
+
+        print('''
+        file_img: {}
+        file_mask: {}
+        '''.format(file_img, file_mask))
+
         print('Starting epoch {}/{}.'.format(epoch + 1, epochs))
         net.train()
 
-        # reset the generators
-        train = get_imgs_and_masks(iddataset['train'], dir_img, dir_mask, img_scale)
-        val = get_imgs_and_masks(iddataset['val'], dir_img, dir_mask, img_scale)
+        train = zip(
+          h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, [1, 10], [800, 1600], [0, 600], 4000),
+          h5u.get_masks(file_mask,   iddataset['train'], ma_tags, [1, 10], [800, 1600], [0, 600], truth_th)
+        )
+        val = zip(
+          h5u.get_chw_imgs(file_img, iddataset['val'],   im_tags, [1, 10], [800, 1600], [0, 600], 4000),
+          h5u.get_masks(file_mask,   iddataset['val'],   ma_tags, [1, 10], [800, 1600], [0, 600], truth_th)
+        )
+
+        # for img, mask in train:
+        #   print(img.shape)
+        #   print(mask.shape)
+        #   h5u.plot_and_mask(np.transpose(img, axes=[1, 2, 0]), mask)
+        # continue
 
         epoch_loss = 0
 
         for i, b in enumerate(batch(train, batch_size)):
             imgs = np.array([i[0] for i in b]).astype(np.float32)
             true_masks = np.array([i[1] for i in b])
+
+            # print(imgs.shape)
+            # print(true_masks.shape)
+            # continue
 
             imgs = torch.from_numpy(imgs)
             true_masks = torch.from_numpy(true_masks)
@@ -73,6 +120,8 @@ def train_net(net,
                 true_masks = true_masks.cuda()
 
             masks_pred = net(imgs)
+            # print("Truth: ", np.count_nonzero(true_masks.cpu().detach().numpy()))
+            # print("Pred:  ", np.count_nonzero(masks_pred.cpu().detach().numpy()>0.5))
             masks_probs_flat = masks_pred.view(-1)
 
             true_masks_flat = true_masks.view(-1)
@@ -86,16 +135,22 @@ def train_net(net,
             loss.backward()
             optimizer.step()
 
-        print('Epoch finished ! Loss: {}'.format(epoch_loss / i))
+            # if save_cp and i%20==0:
+            #     torch.save(net.state_dict(),
+            #               dir_checkpoint + 'CP{}-{}.pth'.format(epoch + 1,i+1))
+            #     print('Checkpoint e{}b{} saved !'.format(epoch + 1,i+1))
 
-        if 1:
-            val_dice = eval_net(net, val, gpu)
-            print('Validation Dice Coeff: {}'.format(val_dice))
+        print('Epoch finished ! Loss: {}'.format(epoch_loss / i))
 
         if save_cp:
             torch.save(net.state_dict(),
-                       dir_checkpoint + 'CP{}.pth'.format(epoch + 1))
-            print('Checkpoint {} saved !'.format(epoch + 1))
+                      dir_checkpoint + 'CP{}-{}.pth'.format(epoch + 1,i+1))
+            print('Checkpoint e{} saved !'.format(epoch + 1))
+
+        if False:
+            val_dice = eval_net(net, val, gpu)
+            print('Validation Dice Coeff: {}'.format(val_dice))
+
 
 
 
@@ -120,7 +175,7 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
 
-    net = UNet(n_channels=3, n_classes=1)
+    net = UResNet(n_channels=3, n_classes=1)
 
     if args.load:
         net.load_state_dict(torch.load(args.load))
