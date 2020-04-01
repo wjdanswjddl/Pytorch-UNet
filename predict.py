@@ -171,8 +171,8 @@ if __name__ == "__main__":
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
     im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
 
-    # net = UNet(len(im_tags), 1)
-    net = UResNet(len(im_tags), 1)
+    net = UNet(len(im_tags), 1)
+    # net = UResNet(len(im_tags), 1)
     # net = NestedUNet(len(im_tags), 1)
 
     print("Loading model {}".format(args.model))

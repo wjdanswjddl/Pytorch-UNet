@@ -1,4 +1,5 @@
 data/
+cpp/*.ts
 test/
 checkpoints/
 __pycache__/

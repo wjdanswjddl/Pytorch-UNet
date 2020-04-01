@@ -30,13 +30,15 @@ def count_params(net):
 
 if __name__ == "__main__":
     args = get_args()
+    input_channels = 2
+    output_channels = 1
     
-    # net = UNet(3, 1)
-    net = NestedUNet(3, 1)
+    net = UNet(input_channels, output_channels)
+    # net = NestedUNet(input_channels, output_channels)
 
     # count_params(net)
 
-    example = torch.rand(1, 3, 800, 600)
+    example = torch.rand(1, input_channels, 800, 600)
     
     if args.gpu:
         net.cuda()
@@ -50,6 +52,5 @@ if __name__ == "__main__":
         sm = torch.jit.trace(net, example)
         output = net(example)
         # print(output[0][0][0])
-
 
     sm.save('ts-model.ts')

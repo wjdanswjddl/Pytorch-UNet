@@ -1,10 +1,10 @@
 
 # model=checkpoints/CP1-9.pth
 
-model=model/unet-lt-cosmic500-e50/CP50-450.pth
+# model=model/unet-lt-cosmic500-e50/CP50-450.pth
 # model=model/nestedunet-lt-cosmic500-e50/CP50-450.pth
 
-# model=model/unet-l23-cosmic500-e50/CP50-450.pth
+model=model/unet-l23-cosmic500-e50/CP50-450.pth
 # model=model/uresnet-512-l23-cosmic500-e50/CP50-450.pth
 # model=model/nestedunet-l23-cosmic500-e50/CP50-450.pth
 
