@@ -11,6 +11,8 @@ from PIL import Image
 
 from unet import UNet
 from uresnet import UResNet
+from nestedunet import NestedUNet
+
 from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks
 # from utils import dense_crf
 from utils import plot_img_and_mask
@@ -122,14 +124,14 @@ def get_args():
     parser.add_argument('--no-save', '-n', action='store_true',
                         help="Do not save the output masks",
                         default=False)
-    parser.add_argument('--no-crf', '-r', action='store_true',
+    parser.add_argument('--no-crf', action='store_true',
                         help="Do not use dense CRF postprocessing",
                         default=False)
     parser.add_argument('--mask-threshold', '-t', type=float,
                         help="Minimum probability value to consider a mask pixel white",
                         default=0.5)
-    parser.add_argument('--event', '-e', type=int,
-                        help="Event to be processed",
+    parser.add_argument('--range', '-r', type=int, nargs='+',
+                        help="Event range to be processed",
                         default=0)
     parser.add_argument('--scale', '-s', type=float,
                         help="Scale factor for the input images",
@@ -159,12 +161,19 @@ def mask_to_image(mask):
 
 if __name__ == "__main__":
     args = get_args()
+    assert len(args.range)==2, "range needs 2 inputs"
+
     in_files = args.input
     out_files = get_output_filenames(args)
 
     torch.set_num_threads(1)
 
-    net = UNet(n_channels=3, n_classes=1)
+    # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
+    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+
+    # net = UNet(len(im_tags), 1)
+    net = UResNet(len(im_tags), 1)
+    # net = NestedUNet(len(im_tags), 1)
 
     print("Loading model {}".format(args.model))
 
@@ -181,17 +190,9 @@ if __name__ == "__main__":
 
     for i, fn in enumerate(in_files):
         print("\nPredicting image {} ...".format(fn))
-
-        # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_loose_lf0']   # tll
-        # im_tags = ['frame_tight_lf0', 'frame_tight_lf0', 'frame_loose_lf0']  # ttl
-        # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_mp3_roi0']   # tl3
-        im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
-        # im_tags = ['frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # t23
-        # im_tags = ['frame_tight_lf0', 'frame_loose_lf0', 'frame_mp2_roi0']   # tl2
-
-        img = h5u.get_hwc_img(fn, args.event, im_tags, [1, 10], [800, 1600], [0, 6000], 4000) # V
        
-        events = list(np.arange(1,10))
+
+        events = list(np.arange(args.range[0], args.range[1]))
         for event in events:
           img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
 
@@ -208,7 +209,8 @@ if __name__ == "__main__":
 
           if args.viz:
               print("Visualizing results for image {}, close to continue ...".format(fn))
-              h5u.plot_and_mask(img, mask)
+              h5u.plot_mask(mask)
+              # h5u.plot_img(img)
 
           if not args.no_save:
               out_fn = out_files[i]

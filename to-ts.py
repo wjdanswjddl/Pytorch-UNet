@@ -9,6 +9,7 @@ import torchvision
 
 from unet import UNet
 from uresnet import UResNet
+from nestedunet import NestedUNet
 
 
 def get_args():
@@ -30,7 +31,8 @@ def count_params(net):
 if __name__ == "__main__":
     args = get_args()
     
-    net = UNet(n_channels=3, n_classes=1)
+    # net = UNet(3, 1)
+    net = NestedUNet(3, 1)
 
     # count_params(net)
 
