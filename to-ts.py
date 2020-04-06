@@ -30,13 +30,14 @@ def count_params(net):
 
 if __name__ == "__main__":
     args = get_args()
-    input_channels = 2
+    input_channels = 3
     output_channels = 1
     
-    net = UNet(input_channels, output_channels)
+    # net = UNet(input_channels, output_channels)
+    net = UResNet(input_channels, output_channels)
     # net = NestedUNet(input_channels, output_channels)
 
-    # count_params(net)
+    count_params(net)
 
     example = torch.rand(1, input_channels, 800, 600)
     

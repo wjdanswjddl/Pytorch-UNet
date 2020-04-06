@@ -175,12 +175,14 @@ if __name__ == '__main__':
     torch.set_num_threads(1)
 
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
-    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    # im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
     ma_tags = ['frame_ductor0']
     truth_th = 100
 
-    # net = UNet(n_channels=len(im_tags), n_classes=len(ma_tags))
-    net = NestedUNet(len(im_tags),len(ma_tags))
+    net = UNet(len(im_tags), len(ma_tags))
+    # net = UResNet(len(im_tags), len(ma_tags))
+    # net = NestedUNet(len(im_tags),len(ma_tags))
 
     if args.load:
         net.load_state_dict(torch.load(args.load))

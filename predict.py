@@ -169,7 +169,8 @@ if __name__ == "__main__":
     torch.set_num_threads(1)
 
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
-    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    # im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
 
     net = UNet(len(im_tags), 1)
     # net = UResNet(len(im_tags), 1)
