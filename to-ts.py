@@ -33,8 +33,8 @@ if __name__ == "__main__":
     input_channels = 3
     output_channels = 1
     
-    # net = UNet(input_channels, output_channels)
-    net = UResNet(input_channels, output_channels)
+    net = UNet(input_channels, output_channels)
+    # net = UResNet(input_channels, output_channels)
     # net = NestedUNet(input_channels, output_channels)
 
     count_params(net)

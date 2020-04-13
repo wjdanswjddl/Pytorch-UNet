@@ -28,7 +28,8 @@ def predict_img(net,
                 use_dense_crf=True,
                 use_gpu=False):
     
-    net.eval()
+    # eval mode fixes BN and dropout, which yields bad results
+    # net.eval()
     
     img_tensor = torch.from_numpy(hwc_to_chw(full_img))
     if use_gpu:
@@ -38,70 +39,12 @@ def predict_img(net,
         input = img_tensor.unsqueeze(0)
         print ("input.shape: ", input.shape)
         full_mask = net(input).squeeze().cpu().numpy()
+        print ("full_mask.shape: ", full_mask.shape)
 
     if out_threshold < 0:
       return full_mask
       
     return full_mask > out_threshold
-
-def predict_img_split(net,
-                full_img,
-                scale_factor=0.5,
-                out_threshold=0.5,
-                use_dense_crf=True,
-                use_gpu=False):
-
-    net.eval()
-    img_height = full_img.shape[0]
-    img_width = full_img.shape[1]
-
-    # img = resize_and_crop(full_img, scale=scale_factor)
-    img = full_img
-
-    left_square, right_square = split_img_into_squares(img)
-
-    left_square = hwc_to_chw(left_square)
-    right_square = hwc_to_chw(right_square)
-    print ("left_square.shape: ", left_square.shape)
-    X_left = torch.from_numpy(left_square).unsqueeze(0)
-    X_right = torch.from_numpy(right_square).unsqueeze(0)
-    print ("X_left.shape: ", X_left.shape)
-    
-    if use_gpu:
-        X_left = X_left.cuda()
-        X_right = X_right.cuda()
-
-    with torch.no_grad():
-        output_left = net(X_left)
-        output_right = net(X_right)
-        print("output_left.shape: ", output_left.shape)
-
-        left_probs = output_left.squeeze(0)
-        right_probs = output_right.squeeze(0)
-
-        tf = transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.Resize(img_width),
-                transforms.ToTensor()
-            ]
-        )
-        
-        left_probs = tf(left_probs.cpu())
-        right_probs = tf(right_probs.cpu())
-
-        left_mask_np = left_probs.squeeze().cpu().numpy()
-        right_mask_np = right_probs.squeeze().cpu().numpy()
-    full_mask = merge_masks(left_mask_np, right_mask_np, img_width)
-
-    if use_dense_crf:
-        full_mask = dense_crf(np.array(full_img).astype(np.uint8), full_mask)
-
-    if out_threshold < 0:
-      return full_mask
-      
-    return full_mask > out_threshold
-
 
 
 def get_args():
@@ -169,23 +112,27 @@ if __name__ == "__main__":
     torch.set_num_threads(1)
 
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
-    # im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
-    im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
-
-    net = UNet(len(im_tags), 1)
-    # net = UResNet(len(im_tags), 1)
-    # net = NestedUNet(len(im_tags), 1)
+    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
 
     print("Loading model {}".format(args.model))
-
-    if not args.cpu:
-        print("Using CUDA version of the net, prepare your GPU !")
-        net.cuda()
-        net.load_state_dict(torch.load(args.model))
+    if args.model.endswith(".ts"):
+        net = torch.jit.load(args.model)
+        if not args.cpu:
+            net.cuda()
+        else:
+            net.cpu()
     else:
-        net.cpu()
-        net.load_state_dict(torch.load(args.model, map_location='cpu'))
-        print("Using CPU version of the net, this may be very slow")
+        net = UNet(len(im_tags), 1)
+        # net = UResNet(len(im_tags), 1)
+        # net = NestedUNet(len(im_tags), 1)
+
+        if not args.cpu:
+            net.cuda()
+            net.load_state_dict(torch.load(args.model))
+        else:
+            net.cpu()
+            net.load_state_dict(torch.load(args.model, map_location='cpu'))
 
     print("Model loaded !")
 
@@ -195,27 +142,27 @@ if __name__ == "__main__":
 
         events = list(np.arange(args.range[0], args.range[1]))
         for event in events:
-          img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
+            img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
 
-          print(img.shape)
-          if img.shape[0] < img.shape[1]:
-              print("Error: image height larger than the width")
+            print(img.shape)
+            if img.shape[0] < img.shape[1]:
+                print("Error: image height larger than the width")
 
-          mask = predict_img(net=net,
-                            full_img=img,
-                            scale_factor=args.scale,
-                            out_threshold=args.mask_threshold,
-                            use_dense_crf= not args.no_crf,
-                            use_gpu=not args.cpu)
+            mask = predict_img(net=net,
+                                full_img=img,
+                                scale_factor=args.scale,
+                                out_threshold=args.mask_threshold,
+                                use_dense_crf= not args.no_crf,
+                                use_gpu=not args.cpu)
 
-          if args.viz:
-              print("Visualizing results for image {}, close to continue ...".format(fn))
-              h5u.plot_mask(mask)
-              # h5u.plot_img(img)
+            if args.viz:
+                print("Visualizing results for image {}, close to continue ...".format(fn))
+                h5u.plot_mask(mask)
+                # h5u.plot_img(img)
 
-          if not args.no_save:
-              out_fn = out_files[i]
-              result = mask_to_image(mask)
-              result.save(out_files[i])
+            if not args.no_save:
+                out_fn = out_files[i]
+                result = mask_to_image(mask)
+                result.save(out_files[i])
 
-              print("Mask saved to {}".format(out_files[i]))                
+                print("Mask saved to {}".format(out_files[i]))

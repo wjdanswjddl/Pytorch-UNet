@@ -2,6 +2,8 @@
 
 import sys
 import os
+import math
+import itertools
 from optparse import OptionParser
 import numpy as np
 
@@ -14,9 +16,19 @@ from unet import UNet
 from uresnet import UResNet
 from nestedunet import NestedUNet
 
-from eval import eval_net
+from eval_util import eval_dice, eval_loss, eval_eff_pur
 from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
 from utils import h5_utils as h5u
+
+def print_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        print(param_group['lr'])
+
+def lr_exp_decay(optimizer, lr0, gamma, epoch):
+    lr = lr0*math.exp(-gamma*epoch)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return optimizer
 
 def train_net(net,
               im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0'],
@@ -32,9 +44,7 @@ def train_net(net,
               img_scale=0.5):
 
     dir_checkpoint = 'checkpoints/'
-
     ids = list(np.arange(samples))
-
     iddataset = split_train_val(ids, val_percent)
     print(iddataset['train'])
 
@@ -52,11 +62,9 @@ def train_net(net,
 
     N_train = len(iddataset['train'])
 
-    optimizer = optim.SGD(net.parameters(),
-                          lr=lr,
-                          momentum=0.9,
-                          weight_decay=0.0005)
-
+    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.9, weight_decay=0.0005)
+    # optimizer = optim.Adam(net.parameters(), lr=lr)
+    
     criterion = nn.BCELoss()
 
     print('''
@@ -64,15 +72,40 @@ def train_net(net,
     ma_tags: {}
     truth_th: {}
     '''.format(im_tags,ma_tags,truth_th))
-    outfile_loss = open('loss.csv','w')
-    for epoch in range(0,epochs):
+    outfile_loss_batch = open(dir_checkpoint+'/loss-batch.csv','w')
+    outfile_loss       = open(dir_checkpoint+'/loss.csv','w')
+    outfile_eval_dice  = open(dir_checkpoint+'/eval-dice.csv','w')
+    outfile_eval_loss  = open(dir_checkpoint+'/eval-loss.csv','w')
+
+    eval_labels = [
+        '75-75',
+        '87-85',
+    ]
+    eval_imgs = []
+    eval_masks = []
+    for label in eval_labels:
+        eval_imgs.append('eval/eval-'+label+'/g4-rec-0.h5')
+        eval_masks.append('eval/eval-'+label+'/g4-tru-0.h5') 
+    outfile_ep = []
+    for label in eval_labels:
+        outfile_ep.append(open(dir_checkpoint+'/ep-'+label+'.csv','w'))
+    
+    epoch_start = 0
+    for epoch in range(epoch_start,epoch_start+epochs):
+        # scheduler = lr_exp_decay(optimizer, lr, 0.05, epoch)
+        scheduler = optimizer
+        
+        print('epoch: {} start'.format(epoch))
+        print(optimizer)
 
         file_img  = 'data/cosmic-rec-0.h5'
         file_mask = 'data/cosmic-tru-0.h5'
-        # if epoch % 2 != 0 :
-        #   file_img  = 'data/mu-rec-0.h5'
-        #   file_mask = 'data/mu-tru-0.h5'
-
+        
+        rebin = [1, 10]
+        x_range = [800, 1600]
+        y_range = [0, 600]
+        z_scale = 4000
+        
         print('''
         file_img: {}
         file_mask: {}
@@ -82,29 +115,28 @@ def train_net(net,
         net.train()
 
         train = zip(
-          h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, [1, 10], [800, 1600], [0, 600], 4000),
-          h5u.get_masks(file_mask,   iddataset['train'], ma_tags, [1, 10], [800, 1600], [0, 600], truth_th)
+          h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, rebin, x_range, y_range, z_scale),
+          h5u.get_masks(file_mask,   iddataset['train'], ma_tags, rebin, x_range, y_range, truth_th)
         )
         val = zip(
-          h5u.get_chw_imgs(file_img, iddataset['val'],   im_tags, [1, 10], [800, 1600], [0, 600], 4000),
-          h5u.get_masks(file_mask,   iddataset['val'],   ma_tags, [1, 10], [800, 1600], [0, 600], truth_th)
+          h5u.get_chw_imgs(file_img, iddataset['val'],   im_tags, rebin, x_range, y_range, z_scale),
+          h5u.get_masks(file_mask,   iddataset['val'],   ma_tags, rebin, x_range, y_range, truth_th)
         )
-
-        # for img, mask in train:
-        #   print(img.shape)
-        #   print(mask.shape)
-        #   h5u.plot_and_mask(np.transpose(img, axes=[1, 2, 0]), mask)
-        # continue
+        eval_data = []
+        for i in range(len(eval_imgs)):
+            id_eval = [0]
+            eval_data.append(
+                zip(
+                    h5u.get_chw_imgs(eval_imgs[i], id_eval,   im_tags, rebin, x_range, y_range, z_scale),
+                    h5u.get_masks(eval_masks[i],   id_eval,   ma_tags, rebin, x_range, y_range, truth_th)
+                )
+            )
 
         epoch_loss = 0
 
         for i, b in enumerate(batch(train, batch_size)):
             imgs = np.array([i[0] for i in b]).astype(np.float32)
             true_masks = np.array([i[1] for i in b])
-
-            # print(imgs.shape)
-            # print(true_masks.shape)
-            # continue
 
             imgs = torch.from_numpy(imgs)
             true_masks = torch.from_numpy(true_masks)
@@ -114,38 +146,43 @@ def train_net(net,
                 true_masks = true_masks.cuda()
 
             masks_pred = net(imgs)
-            # print("Truth: ", np.count_nonzero(true_masks.cpu().detach().numpy()))
-            # print("Pred:  ", np.count_nonzero(masks_pred.cpu().detach().numpy()>0.5))
             masks_probs_flat = masks_pred.view(-1)
-
             true_masks_flat = true_masks.view(-1)
 
             loss = criterion(masks_probs_flat, true_masks_flat)
             epoch_loss += loss.item()
 
             print('{} : {:.4f} --- loss: {:.6f}'.format(epoch, i * batch_size / N_train, loss.item()))
-            print('{:.4f}, {:.6f}'.format(i * batch_size / N_train, loss.item()), file=outfile_loss)
-
+            print('{:.4f}, {:.6f}'.format(i * batch_size / N_train, loss.item()), file=outfile_loss_batch)
             optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            # optimizer.step()
+            scheduler.step()
 
-            # if save_cp and i%20==0:
-            #     torch.save(net.state_dict(),
-            #               dir_checkpoint + 'CP{}-{}.pth'.format(epoch + 1,i+1))
-            #     print('Checkpoint e{}b{} saved !'.format(epoch + 1,i+1))
-
-        print('Epoch finished ! Loss: {:.6f}'.format(epoch_loss / i))
+        epoch_loss = epoch_loss / i
+        print('Epoch finished ! Loss: {:.6f}'.format(epoch_loss))
+        print('{:.4f}, {:.6f}'.format(epoch, epoch_loss), file=outfile_loss)
 
         if save_cp:
             torch.save(net.state_dict(),
                       dir_checkpoint + 'CP{}-{}.pth'.format(epoch + 1,i+1))
             print('Checkpoint e{} saved !'.format(epoch + 1))
 
-        if False:
-            val_dice = eval_net(net, val, gpu)
-            print('Validation Dice Coeff: {}'.format(val_dice))
+        if True:
+            val1, val2 = itertools.tee(val, 2)
+            
+            val_dice = eval_dice(net, val1, gpu)
+            print('Validation Dice Coeff: {:.4f}, {:.6f}'.format(epoch, val_dice))
+            print('{:.4f}, {:.6f}'.format(epoch, val_dice), file=outfile_eval_dice)
 
+            val_loss = eval_loss(net, criterion, val2, gpu)
+            print('Validation Loss: {:.4f}, {:.6f}'.format(epoch, val_loss))
+            print('{:.4f}, {:.6f}'.format(epoch, val_loss), file=outfile_eval_loss)
+            
+            for data, out in zip(eval_data,outfile_ep):
+                ep = eval_eff_pur(net, data, 0.5, gpu)
+                print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(epoch, ep[0], ep[1], ep[2], ep[3]), file=out)
+            
 
 
 
@@ -175,8 +212,8 @@ if __name__ == '__main__':
     torch.set_num_threads(1)
 
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
-    # im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
-    im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
+    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
     ma_tags = ['frame_ductor0']
     truth_th = 100
 

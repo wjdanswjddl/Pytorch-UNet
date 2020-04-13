@@ -1,27 +1,48 @@
 #!/usr/bin/env python
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
 
-tags   = ['model/unet-l23-cosmic500-e50', 'model/uresnet-512-l23-cosmic500-e50', 'model/nestedunet-l23-cosmic500-e50']
-labels = ['UNet', 'UResNet', 'NestedUNet']
-dfs = [pd.read_csv(tag+'/loss.csv', sep=' ', header=None) for tag in tags]
+inputs   = [
+    # 'model/unet-l23-cosmic500-e50/loss.csv',
+    # 'unet-l23-cosmic500-e50-t1/loss.csv',
+    # 'unet-l23-cosmic500-e50-t2/loss.csv',
+    
+    # 'unet-l23-cosmic500-e50-t1/eval-loss.csv',
+    # 'unet-l23-cosmic500-e50-t2/eval-loss.csv',
+    
+    'unet-l23-cosmic500-e50-t1/ep-87-85.csv',
+    'unet-l23-cosmic500-e50-t2/ep-87-85.csv',
+    'unet-adam-l23-cosmic500-e50/ep-87-85.csv',
+    ]
+labels = [
+    # 'UNet-LR0.1-e50-t0',
+    # 'UNet-LR0.1-e50-t1',
+    # 'UNet-LR0.1-e50-t2',
 
-epoch = 50
-nsample = 450
+    # 'UNet-LR0.1-e50-t1-Val',
+    # 'UNet-LR0.1-e50-t2-Val',
+    
+    'UNet-LR0.1-e50-t1-87-85',
+    'UNet-LR0.1-e50-t2-87-85',
+    'UNet-Adam-LR0.1-e50-t2-87-85',
+    ]
 
-mean_loss = np.zeros((len(tags),epoch))
+for itag in range(len(inputs)) :
+    data = np.genfromtxt(inputs[itag], delimiter=',')
+    marker = '-o'
+    if labels[itag].find('Val') > 0:
+        marker = '-^'
+    plt.plot(data[:,0], data[:,3], marker,label=labels[itag])
 
-for itag in range(len(tags)) :
-  for iepoch in range(epoch):
-    mean_loss[itag][iepoch] = dfs[itag][1][nsample*iepoch:nsample*(iepoch+1)].to_numpy().mean()
-
-for itag in range(len(tags)) :
-  plt.plot(np.linspace(2, epoch,epoch-1), mean_loss[itag][1:],'o',label=labels[itag])
-plt.legend(loc='best',fontsize=15)
+fontsize = 18
+plt.legend(loc='best',fontsize=fontsize)
 plt.grid()
-# plt.ylim(0,1e-2)
-plt.xlabel("epoch", fontsize=15)
-plt.ylabel("mean loss", fontsize=15)
+# plt.ylim(0.003,0.010)
+plt.xlabel("Epoch", fontsize=fontsize)
+# plt.ylabel("Mean Loss", fontsize=fontsize)
+plt.ylabel("Pixel Efficiency", fontsize=fontsize)
+plt.ylabel("Pixel Purity", fontsize=fontsize)
+plt.ylabel("ROI Efficiency", fontsize=fontsize)
+# plt.ylabel("ROI Purity", fontsize=fontsize)
 plt.show()
