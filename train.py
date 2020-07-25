@@ -46,7 +46,10 @@ def train_net(net,
     dir_checkpoint = 'checkpoints/'
     ids = list(np.arange(samples))
     iddataset = split_train_val(ids, val_percent)
-    print(iddataset['train'])
+
+    outfile_log = open(dir_checkpoint+'/log','w')
+
+    print(iddataset['train'], file=outfile_log, flush=True)
 
     print('''
     Starting training:
@@ -58,7 +61,7 @@ def train_net(net,
         Checkpoints: {}
         CUDA: {}
     '''.format(epochs, batch_size, lr, len(iddataset['train']),
-               len(iddataset['val']), str(save_cp), str(gpu)))
+               len(iddataset['val']), str(save_cp), str(gpu)), file=outfile_log, flush=True)
 
     N_train = len(iddataset['train'])
 
@@ -71,7 +74,7 @@ def train_net(net,
     im_tags: {}
     ma_tags: {}
     truth_th: {}
-    '''.format(im_tags,ma_tags,truth_th))
+    '''.format(im_tags,ma_tags,truth_th), file=outfile_log, flush=True)
     outfile_loss_batch = open(dir_checkpoint+'/loss-batch.csv','w')
     outfile_loss       = open(dir_checkpoint+'/loss.csv','w')
     outfile_eval_dice  = open(dir_checkpoint+'/eval-dice.csv','w')
@@ -92,11 +95,11 @@ def train_net(net,
     
     epoch_start = 0
     for epoch in range(epoch_start,epoch_start+epochs):
-        # scheduler = lr_exp_decay(optimizer, lr, 0.05, epoch)
+        # scheduler = lr_exp_decay(optimizer, lr, 0.04, epoch)
         scheduler = optimizer
         
         print('epoch: {} start'.format(epoch))
-        print(optimizer)
+        print(optimizer, file=outfile_log, flush=True)
 
         file_img  = 'data/cosmic-rec-0.h5'
         file_mask = 'data/cosmic-tru-0.h5'
@@ -109,7 +112,7 @@ def train_net(net,
         print('''
         file_img: {}
         file_mask: {}
-        '''.format(file_img, file_mask))
+        '''.format(file_img, file_mask), file=outfile_log, flush=True)
 
         print('Starting epoch {}/{}.'.format(epoch + 1, epochs))
         net.train()
@@ -153,7 +156,7 @@ def train_net(net,
             epoch_loss += loss.item()
 
             print('{} : {:.4f} --- loss: {:.6f}'.format(epoch, i * batch_size / N_train, loss.item()))
-            print('{:.4f}, {:.6f}'.format(i * batch_size / N_train, loss.item()), file=outfile_loss_batch)
+            print('{:.4f}, {:.6f}'.format(i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
             optimizer.zero_grad()
             loss.backward()
             # optimizer.step()
@@ -161,7 +164,7 @@ def train_net(net,
 
         epoch_loss = epoch_loss / i
         print('Epoch finished ! Loss: {:.6f}'.format(epoch_loss))
-        print('{:.4f}, {:.6f}'.format(epoch, epoch_loss), file=outfile_loss)
+        print('{:.4f}, {:.6f}'.format(epoch, epoch_loss), file=outfile_loss, flush=True)
 
         if save_cp:
             torch.save(net.state_dict(),
@@ -173,15 +176,15 @@ def train_net(net,
             
             val_dice = eval_dice(net, val1, gpu)
             print('Validation Dice Coeff: {:.4f}, {:.6f}'.format(epoch, val_dice))
-            print('{:.4f}, {:.6f}'.format(epoch, val_dice), file=outfile_eval_dice)
+            print('{:.4f}, {:.6f}'.format(epoch, val_dice), file=outfile_eval_dice, flush=True)
 
             val_loss = eval_loss(net, criterion, val2, gpu)
             print('Validation Loss: {:.4f}, {:.6f}'.format(epoch, val_loss))
-            print('{:.4f}, {:.6f}'.format(epoch, val_loss), file=outfile_eval_loss)
+            print('{:.4f}, {:.6f}'.format(epoch, val_loss), file=outfile_eval_loss, flush=True)
             
             for data, out in zip(eval_data,outfile_ep):
                 ep = eval_eff_pur(net, data, 0.5, gpu)
-                print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(epoch, ep[0], ep[1], ep[2], ep[3]), file=out)
+                print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(epoch, ep[0], ep[1], ep[2], ep[3]), file=out, flush=True)
             
 
 

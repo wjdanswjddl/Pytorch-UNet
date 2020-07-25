@@ -6,5 +6,5 @@
 
 # model=unet-adam-l23-cosmic500-e50/CP50-450.pth
 
-time python train.py -g -e 50 -n 500
+time python train.py -g -e 20 -n 500
 # time python train.py -g --load ${model} -e 2 -n 10

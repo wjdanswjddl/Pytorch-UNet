@@ -1,4 +1,4 @@
-name=unet-l23-cosmic500-e50-t2
+name=unet-lt23-cosmic500-e50
 
 model=model/${name}/CP50-450.pth
 
