@@ -53,8 +53,8 @@ if __name__ == "__main__":
     torch.set_num_threads(1)
 
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
-    # im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
-    im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
+    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
 
     ma_tags = ['frame_ductor0']
 
@@ -80,22 +80,35 @@ if __name__ == "__main__":
     print("Model loaded !")
 
     dir_out = 'out-eval/'
+    # v plane
+    # eval_labels = [
+    #     '75-75',
+    #     '80-80',
+    #     '82-82',
+    #     '85-85',
+    #     '87-75',
+    #     '87-85',
+    #     '87-87',
+    #     ]
+    
+    # u plane
     eval_labels = [
         '75-75',
         '80-80',
         '82-82',
         '85-85',
-        '87-75',
-        '87-85',
+        # '75-87',
+        # '85-87',
         '87-87',
         ]
     eval_imgs = []
     eval_masks = []
     for label in eval_labels:
-        eval_imgs.append('eval/eval-'+label+'/g4-rec-0.h5')
-        eval_masks.append('eval/eval-'+label+'/g4-tru-0.h5') 
+        eval_imgs.append('eval-jinst-init-sub/eval-'+label+'/g4-rec-0.h5')
+        eval_masks.append('eval-jinst-init-sub/eval-'+label+'/g4-tru-0.h5') 
             
     rebin = [1, 10]
+    # x_range = [0, 800]
     x_range = [800, 1600]
     y_range = [0, 600]
     z_scale = 4000
@@ -103,7 +116,7 @@ if __name__ == "__main__":
 
     eval_data = []
     for i in range(len(eval_imgs)):
-        id_eval = [0]
+        id_eval = [100]
         eval_data.append(
             zip(
                 h5u.get_chw_imgs(eval_imgs[i], id_eval,   im_tags, rebin, x_range, y_range, z_scale),

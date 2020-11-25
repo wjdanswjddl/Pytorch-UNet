@@ -111,8 +111,8 @@ if __name__ == "__main__":
 
     torch.set_num_threads(1)
 
-    im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
-    # im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
+    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
     # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
 
     print("Loading model {}".format(args.model))
@@ -142,6 +142,7 @@ if __name__ == "__main__":
 
         events = list(np.arange(args.range[0], args.range[1]))
         for event in events:
+            # img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [0, 800], [0, 600], 4000) # U
             img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
 
             print(img.shape)

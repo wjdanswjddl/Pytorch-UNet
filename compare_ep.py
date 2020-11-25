@@ -6,38 +6,52 @@ import numpy as np
 import re
 
 inputs   = [
-    'out-eval/heuristic.csv',
-    
-    'out-eval/unet-lt-cosmic500-e50.csv',
-    # 'out-eval/unet-l23-cosmic500-e50.csv',
-    'out-eval/unet-l23-cosmic500-e50-t1.csv',
-    # 'out-eval/unet-lt23-cosmic500-e50.csv',
-    # 'out-eval/unet-explr-l23-cosmic500-e60.csv',
-    # 'out-eval/unet-adam-l23-cosmic500-e50.csv',
-    
-    # 'out-eval/uresnet-explr-l23-cosmic500-e50.csv',
-    # 'out-eval/uresnet-l23-cosmic500-e50-t1.csv',
-    
-    # 'out-eval/nestedunet-l23-cosmic500-e50.csv',
+    # initial arxiv submission
+    # 'out-eval/heuristic-u.csv',
+    # 'out-eval/unet-lt-cosmic500-e50.csv',
+    # 'out-eval/unet-l23-cosmic500-e50-t1.csv',
+
+    # u-plane
+    'jins-resp/eval/unet-l23-cosmic500-e50-t1-u.csv',
+    'jins-resp/eval/unet-l23-cosmic500-e50-t1-v.csv',
+    'jins-resp/eval/heuristic-u.csv',
+    'jins-resp/eval/heuristic-v.csv',
+
+    # for sample size test
+    # 'out-eval/unet-l23-cosmic500-e50-t1.csv',
+    # 'out-eval/sample-size-test-400.csv',
+    # 'out-eval/sample-size-test-300.csv',
+    # 'out-eval/sample-size-test-200.csv',
+    # 'out-eval/sample-size-test-50.csv',
     ]
 labels = [
-    'Ref.',
-    'DNN without MP',
-    'DNN with MP',
+    # initial arxiv submission
+    # 'Ref.',
+    # 'DNN without MP',
+    # 'DNN with MP',
 
-    # "UNet",
-    # "UResNet",
-    # "UNet++",
+    # u-plane
+    'U Plane DNN',
+    'V Plane DNN',
+    'U Plane Ref.',
+    'V Plane Ref.',
+
+    # for sample size test
+    # 'Ref. 450 samples',
+    # '400 samples',
+    # '300 samples',
+    # '200 samples',
+    # '50 samples',
     ]
 
 markers = [
     'o',
     's',
-    '*'
-    # 'v',
-    # '^',
-    # '<',
-    # '>',
+    '*',
+    'v',
+    '^',
+    '<',
+    '>',
 ]
 
 metric_label = [
@@ -48,7 +62,7 @@ metric_label = [
 ]
 
 # 1: pix eff; 2: pix pur; 3: roi eff; 4: roi pur
-imetric = 2
+imetric = 1
 
 dfs = [pd.read_csv(i, sep=',', header=None) for i in inputs]
 tags = [re.sub('-', ', ', i) for i in dfs[0][0].tolist()]
