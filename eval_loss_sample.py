@@ -40,10 +40,9 @@ def train_net(net,
               ntrain=10,
               sval=450,
               nval=50, 
-              batch_size=10,
+              batch_size=1,
               lr=0.1,
-              val_percent=0.10,
-              save_cp=True,
+              save_cp=False,
               gpu=False,
               img_scale=0.5):
 
@@ -112,6 +111,9 @@ def train_net(net,
 
         file_img  = 'data/cosmic-rec-0.h5'
         file_mask = 'data/cosmic-tru-0.h5'
+
+        # file_img  = 'data/cosmic-rec-0-v2-test.h5'
+        # file_mask = 'data/cosmic-tru-0-v2-test.h5'
         
         rebin = [1, 10]
         x_range = [800, 1600]
@@ -166,10 +168,9 @@ def train_net(net,
 
             print('{} : {:.4f} --- loss: {:.6f}'.format(epoch, i * batch_size / N_train, loss.item()))
             print('{:.4f}, {:.6f}'.format(i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
-            optimizer.zero_grad()
-            loss.backward()
-            # optimizer.step()
-            scheduler.step()
+            # optimizer.zero_grad()
+            # loss.backward()
+            # scheduler.step()
 
         epoch_loss = epoch_loss / (i + 1)
         print('Epoch finished ! Loss: {:.6f}'.format(epoch_loss))
