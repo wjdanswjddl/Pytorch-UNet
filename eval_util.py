@@ -44,7 +44,6 @@ def eval_loss(net, criterion, dataset, gpu=False):
 
         loss = criterion(masks_probs_flat, true_masks_flat)
         tot += loss.item()
-    print('i: ', i)
     return tot / (i + 1)
 
 def eval_roi(f0, f1, th0 = 0, th1 = 0.5):

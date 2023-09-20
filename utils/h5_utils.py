@@ -67,6 +67,7 @@ def get_hwc_imgs(file, ids, tags, scale, crop0, crop1, norm):
   for id in ids:
     im = get_hwc_img(file[id[0]], id[1], tags, scale, crop0, crop1, norm)
     if im is None:
+      print(f'warn: {file[id[0]]} {id[1]} {tags} is None!')
       continue
     yield im
 
@@ -75,6 +76,7 @@ def get_chw_imgs(file, ids, tags, scale, crop0, crop1, norm):
   for id in ids:
     im = get_hwc_img(file[id[0]], id[1], tags, scale, crop0, crop1, norm)
     if im is None:
+      print(f'warn: {file[id[0]]} {id[1]} {tags} is None!')
       continue
     im = np.transpose(im, axes=[2, 0, 1])
     yield im
@@ -84,6 +86,7 @@ def get_masks(file, ids, tags, scale, crop0, crop1, threshold):
   for id in ids:
     im = load(file[id[0]], id[1], tags)
     if im is None:
+      print(f'warn: {file[id[0]]} {id[1]} {tags} is None!')
       continue
     im = im.reshape(im.shape[0],im.shape[1])
     im = rebin(im, [im.shape[0]//scale[0],im.shape[1]//scale[1]])

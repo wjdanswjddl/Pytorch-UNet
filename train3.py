@@ -53,8 +53,9 @@ def train_net(net,
 
     iddataset = {}
     event_per_file = 10
+    event_zero_id_offset = 100
     def id_gen(index):
-        return (index // event_per_file, index % event_per_file)
+        return (index // event_per_file, index % event_per_file + event_zero_id_offset)
     iddataset['train'] = [id_gen(i) for i in list(strain+np.arange(ntrain))]
     iddataset['val'] = [id_gen(i) for i in list(sval+np.arange(nval))]
 
@@ -189,9 +190,9 @@ def train_net(net,
             # print('Validation Dice Coeff: {:.4f}, {:.6f}'.format(epoch, val_dice))
             # print('{:.4f}, {:.6f}'.format(epoch, val_dice), file=outfile_eval_dice, flush=True)
 
-            # val_loss = eval_loss(net, criterion, val2, gpu)
-            # print('Validation Loss: {:.4f}, {:.6f}'.format(epoch, val_loss))
-            # print('{:.4f}, {:.6f}'.format(epoch, val_loss), file=outfile_eval_loss, flush=True)
+            val_loss = eval_loss(net, criterion, val2, gpu)
+            print('Validation Loss: {:.4f}, {:.6f}'.format(epoch, val_loss))
+            print('{:.4f}, {:.6f}'.format(epoch, val_loss), file=outfile_eval_loss, flush=True)
             
             # for data, out in zip(eval_data,outfile_ep):
             #     ep = eval_eff_pur(net, data, 0.5, gpu)
