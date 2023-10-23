@@ -17,7 +17,7 @@ from uresnet import UResNet
 from nestedunet import NestedUNet
 
 from eval_util import eval_dice, eval_loss, eval_eff_pur
-from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
+from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch, chw_to_hwc
 from utils import h5_utils as h5u
 
 def print_lr(optimizer):
@@ -34,8 +34,8 @@ def train_net(net,
               im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0'],
               ma_tags = ['frame_ductor0'],
               truth_th = 100,
-              file_img  = [f"data/g4-rec-r{i}.h5" for i in range(8)],
-              file_mask = [f"data/g4-tru-r{i}.h5" for i in range(8)],
+              file_img  = [f"data/g4-rec-r{i}.h5" for i in range(10)],
+              file_mask = [f"data/g4-tru-r{i}.h5" for i in range(10)],
               sepoch=0,
               nepoch=1,
               strain=0,
@@ -50,6 +50,8 @@ def train_net(net,
               img_scale=0.5):
 
     dir_checkpoint = 'checkpoints/'
+    if not os.path.exists(dir_checkpoint):
+        os.makedirs(dir_checkpoint)
 
     iddataset = {}
     event_per_file = 10
@@ -117,7 +119,8 @@ def train_net(net,
         print(optimizer, file=outfile_log, flush=True)
         
         rebin = [1, 10]
-        x_range = [800, 1600]
+        # x_range = [800, 1600] # PDSP, V, left-closed right-open interval
+        x_range = [476, 952] # PDVD, V
         y_range = [0, 600]
         z_scale = 4000
         
@@ -152,6 +155,9 @@ def train_net(net,
         for i, b in enumerate(batch(train, batch_size)):
             imgs = np.array([i[0] for i in b]).astype(np.float32)
             true_masks = np.array([i[1] for i in b])
+            if False:
+                h5u.plot_mask(b[0][1])
+                h5u.plot_img(chw_to_hwc(b[0][0]))
 
             imgs = torch.from_numpy(imgs)
             true_masks = torch.from_numpy(true_masks)
@@ -240,7 +246,7 @@ if __name__ == '__main__':
     im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
     # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
     ma_tags = ['frame_ductor0']
-    truth_th = 100
+    truth_th = 10
 
     net = UNet(len(im_tags), len(ma_tags))
     # net = UResNet(len(im_tags), len(ma_tags))

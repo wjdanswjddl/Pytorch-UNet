@@ -15,27 +15,27 @@ inputs   = [
     # 'model/unet-adam-l23-cosmic500-e50/loss.csv',
     # 'model/unet-adam-l23-cosmic500-e50/eval-loss.csv',
     
-    # 'loss-diff-3/loss.csv',
-    # 'loss-diff-3/eval-loss.csv',
+    'test3-th10/loss.csv',
+    'test3-th10/eval-loss.csv',
 
     # sample size
-    'model/unet-l23-cosmic500-e50-t1/ep-87-85.csv',
-    'sample-size-test-400/ep-87-85.csv',
-    'sample-size-test-300/ep-87-85.csv',
-    'sample-size-test-200/ep-87-85.csv',
-    'sample-size-test-50/ep-87-85.csv',
+    # 'model/unet-l23-cosmic500-e50-t1/ep-87-85.csv',
+    # 'sample-size-test-400/ep-87-85.csv',
+    # 'sample-size-test-300/ep-87-85.csv',
+    # 'sample-size-test-200/ep-87-85.csv',
+    # 'sample-size-test-50/ep-87-85.csv',
     ]
 labels = [
     # train-eval
-    # 'Training',
-    # 'Validation',
+    'Training',
+    'Validation',
 
     # sample size
-    '450',
-    '400',
-    '300',
-    '200',
-    '50',
+    # '450',
+    # '400',
+    # '300',
+    # '200',
+    # '50',
     ]
 
 for itag in range(len(inputs)) :

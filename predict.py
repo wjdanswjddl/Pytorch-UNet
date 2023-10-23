@@ -143,7 +143,8 @@ if __name__ == "__main__":
         events = list(np.arange(args.range[0], args.range[1]))
         for event in events:
             # img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [0, 800], [0, 600], 4000) # U
-            img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
+            # img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
+            img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [476, 952], [0, 600], 4000) # PDVD, V
 
             print(img.shape)
             if img.shape[0] < img.shape[1]:
@@ -158,6 +159,7 @@ if __name__ == "__main__":
 
             if args.viz:
                 print("Visualizing results for image {}, close to continue ...".format(fn))
+                print(f'event: {event}')
                 h5u.plot_mask(mask)
                 # h5u.plot_img(img)
 
