@@ -6,8 +6,8 @@ Example usage in `train.sh` and `predict.sh`
 
 ## install
 
-prerequisite conda
-https://www.anaconda.com/download/
+prerequisite: conda
+https://docs.anaconda.com/free/anaconda/install/linux/
 
 ```
 conda env create -f conda_env.yml
