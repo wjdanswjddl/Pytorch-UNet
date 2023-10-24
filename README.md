@@ -6,11 +6,30 @@ Example usage in `train.sh` and `predict.sh`
 
 ## install
 
+### use `conda`
 prerequisite: conda
 https://docs.anaconda.com/free/anaconda/install/linux/
 
+use environment.yml
 ```
-conda env create -f conda_env.yml
+conda env create -f environment.yml
+```
+
+manually
+```
+conda create --name pt110 python=3.9 numpy
+conda activate pt110
+pip install torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/cu111/torch_stable.html
+pip install matplotlib
+pip install h5py
+```
+
+### use `pip`
+
+```
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt -f https://download.pytorch.org/whl/cu111/torch_stable.html
 ```
 
 ## talks:
