@@ -32,7 +32,7 @@ def lr_exp_decay(optimizer, lr0, gamma, epoch):
 
 def train_net(net,
               im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0'],
-              ma_tags = ['frame_ductor0'],
+              ma_tags = ['frame_deposplat0'],
               truth_th = 100,
               epochs=5,
               samples=10,
@@ -43,7 +43,7 @@ def train_net(net,
               gpu=False,
               img_scale=0.5):
 
-    dir_checkpoint = 'checkpoints/'
+    dir_checkpoint = 'checkpoints'
     ids = list(np.arange(samples))
     iddataset = split_train_val(ids, val_percent)
 
@@ -65,8 +65,8 @@ def train_net(net,
 
     N_train = len(iddataset['train'])
 
-    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.9, weight_decay=0.0005)
-    # optimizer = optim.Adam(net.parameters(), lr=lr)
+    #optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.9, weight_decay=0.0005)
+    optimizer = optim.Adam(net.parameters(), lr=lr)
     
     criterion = nn.BCELoss()
 
@@ -81,19 +81,21 @@ def train_net(net,
     outfile_eval_loss  = open(dir_checkpoint+'/eval-loss.csv','w')
 
     eval_labels = [
-        '75-75',
-        '87-85',
+#        '75-75',
+#        '87-85',
+         'bnb'
     ]
     eval_imgs = []
     eval_masks = []
     for label in eval_labels:
-        eval_imgs.append('eval/eval-'+label+'/g4-rec-0.h5')
-        eval_masks.append('eval/eval-'+label+'/g4-tru-0.h5') 
+        eval_imgs.append("/scratch/7DayLifetime/munjung/DNN_ROI/samples/bnb_nu_cosmics/eval-nu-rec-0_all.h5")
+        eval_masks.append("/scratch/7DayLifetime/munjung/DNN_ROI/samples/bnb_nu_cosmics/eval-nu-tru-0_all.h5") 
     outfile_ep = []
     for label in eval_labels:
         outfile_ep.append(open(dir_checkpoint+'/ep-'+label+'.csv','w'))
     
     epoch_start = 0
+    best_val_loss = np.inf
     for epoch in range(epoch_start,epoch_start+epochs):
         # scheduler = lr_exp_decay(optimizer, lr, 0.04, epoch)
         scheduler = optimizer
@@ -101,12 +103,12 @@ def train_net(net,
         print('epoch: {} start'.format(epoch))
         print(optimizer, file=outfile_log, flush=True)
 
-        file_img  = 'data/cosmic-rec-0.h5'
-        file_mask = 'data/cosmic-tru-0.h5'
+        file_img  = '/scratch/7DayLifetime/munjung/DNN_ROI/samples/bnb_nu_cosmics/nu-rec-0_all.h5'
+        file_mask = '/scratch/7DayLifetime/munjung/DNN_ROI/samples/bnb_nu_cosmics/nu-tru-0_all.h5'
         
         rebin = [1, 10]
-        x_range = [800, 1600]
-        y_range = [0, 600]
+        x_range = [0, 1600]
+        y_range = [0, 350]
         z_scale = 4000
         
         print('''
@@ -137,6 +139,7 @@ def train_net(net,
 
         epoch_loss = 0
 
+        print("train len", len(iddataset['train']))
         for i, b in enumerate(batch(train, batch_size)):
             imgs = np.array([i[0] for i in b]).astype(np.float32)
             true_masks = np.array([i[1] for i in b])
@@ -155,21 +158,21 @@ def train_net(net,
             loss = criterion(masks_probs_flat, true_masks_flat)
             epoch_loss += loss.item()
 
-            print('{} : {:.4f} --- loss: {:.6f}'.format(epoch, i * batch_size / N_train, loss.item()))
-            print('{:.4f}, {:.6f}'.format(i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
+            #print('{} : {:.4f} --- loss: {:.6f}'.format(epoch, i * batch_size / N_train, loss.item()))
+            #print('{:.4f}, {:.6f}'.format(i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
             optimizer.zero_grad()
             loss.backward()
             # optimizer.step()
             scheduler.step()
 
         epoch_loss = epoch_loss / i
-        print('Epoch finished ! Loss: {:.6f}'.format(epoch_loss))
+        print('Epoch finished ! Train Loss: {:.6f}'.format(epoch_loss))
         print('{:.4f}, {:.6f}'.format(epoch, epoch_loss), file=outfile_loss, flush=True)
 
-        if save_cp:
-            torch.save(net.state_dict(),
-                      dir_checkpoint + 'CP{}-{}.pth'.format(epoch + 1,i+1))
-            print('Checkpoint e{} saved !'.format(epoch + 1))
+        #if save_cp:
+        #    torch.save(net.state_dict(),
+        #              dir_checkpoint + 'CP{}-{}.pth'.format(epoch + 1,i+1))
+        #    print('Checkpoint e{} saved !'.format(epoch + 1))
 
         if True:
             val1, val2 = itertools.tee(val, 2)
@@ -179,9 +182,16 @@ def train_net(net,
             print('{:.4f}, {:.6f}'.format(epoch, val_dice), file=outfile_eval_dice, flush=True)
 
             val_loss = eval_loss(net, criterion, val2, gpu)
+            if val_loss < best_val_loss:
+                print('****** Best validation loss! : {:.6f}'.format(val_loss))
+                best_val_loss = val_loss
+                torch.save(net.state_dict(), dir_checkpoint + 'CP-best.pth')
+                print('Checkpoint best saved !')
+
             print('Validation Loss: {:.4f}, {:.6f}'.format(epoch, val_loss))
             print('{:.4f}, {:.6f}'.format(epoch, val_loss), file=outfile_eval_loss, flush=True)
             
+            print("eval len", len(eval_data))
             for data, out in zip(eval_data,outfile_ep):
                 ep = eval_eff_pur(net, data, 0.5, gpu)
                 print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(epoch, ep[0], ep[1], ep[2], ep[3]), file=out, flush=True)
@@ -217,7 +227,7 @@ if __name__ == '__main__':
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
     im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
     # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
-    ma_tags = ['frame_ductor0']
+    ma_tags = ['frame_deposplat0']
     truth_th = 100
 
     net = UNet(len(im_tags), len(ma_tags))

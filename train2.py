@@ -6,6 +6,7 @@ import math
 import itertools
 from optparse import OptionParser
 import numpy as np
+from tqdm import tqdm
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -32,7 +33,7 @@ def lr_exp_decay(optimizer, lr0, gamma, epoch):
 
 def train_net(net,
               im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0'],
-              ma_tags = ['frame_ductor0'],
+              ma_tags = ['frame_deposplat0'],
               truth_th = 100,
               sepoch=0,
               nepoch=1,
@@ -40,18 +41,20 @@ def train_net(net,
               ntrain=10,
               sval=450,
               nval=50, 
-              batch_size=10,
+              batch_size=8,
               lr=0.1,
               val_percent=0.10,
               save_cp=True,
               gpu=False,
               img_scale=0.5):
 
-    dir_checkpoint = 'checkpoints/'
+    dir_checkpoint = 'checkpoints/tpc0-bothplanes/'
 
     iddataset = {}
     iddataset['train'] = list(strain+np.arange(ntrain))
+    np.random.shuffle(iddataset['train'])
     iddataset['val'] = list(sval+np.arange(nval))
+    np.random.shuffle(iddataset['val'])
 
     outfile_log = open(dir_checkpoint+'/log','a+')
 
@@ -82,27 +85,30 @@ def train_net(net,
     ma_tags: {}
     truth_th: {}
     '''.format(im_tags,ma_tags,truth_th), file=outfile_log, flush=True)
-    outfile_loss_batch = open(dir_checkpoint+'/loss-batch.csv','a+')
-    outfile_loss       = open(dir_checkpoint+'/loss.csv','a+')
-    outfile_eval_dice  = open(dir_checkpoint+'/eval-dice.csv','a+')
-    outfile_eval_loss  = open(dir_checkpoint+'/eval-loss.csv','a+')
+    outfile_loss_batch = open(dir_checkpoint+'/loss-batch_full.csv','a+')
+    outfile_loss       = open(dir_checkpoint+'/loss_full_full.csv','a+')
+    outfile_eval_dice  = open(dir_checkpoint+'/eval-dice_full.csv','a+')
+    outfile_eval_loss  = open(dir_checkpoint+'/eval-loss_full.csv','a+')
 
     eval_labels = [
-        '75-75',
-        '87-85',
+        'test',
+       # '75-75',
+       # '87-85',
     ]
     eval_imgs = []
     eval_masks = []
     for label in eval_labels:
-        eval_imgs.append('eval/eval-'+label+'/g4-rec-0.h5')
-        eval_masks.append('eval/eval-'+label+'/g4-tru-0.h5') 
+        eval_imgs.append('/scratch/7DayLifetime/munjung/DNN_ROI/train/nu-rec-tpc0-bothplanes.h5')
+        eval_masks.append('/scratch/7DayLifetime/munjung/DNN_ROI/train/nu-tru-tpc0-bothplanes.h5') 
     outfile_ep = []
     for label in eval_labels:
-        outfile_ep.append(open(dir_checkpoint+'/ep-'+label+'.csv','a+'))
+        outfile_ep.append(open(dir_checkpoint+'/ep-'+label+'_full.csv','a+'))
     
     if sepoch > 0 :
         net.load_state_dict(torch.load('{}/CP{}.pth'.format(dir_checkpoint, sepoch-1)))
     
+    best_val_dice = 0
+    best_val_loss = np.inf
     for epoch in range(sepoch,sepoch+nepoch):
         # scheduler = lr_exp_decay(optimizer, lr, 0.04, epoch)
         scheduler = optimizer
@@ -110,13 +116,16 @@ def train_net(net,
         print('epoch: {} start'.format(epoch))
         print(optimizer, file=outfile_log, flush=True)
 
-        file_img  = 'data/cosmic-rec-0.h5'
-        file_mask = 'data/cosmic-tru-0.h5'
+        file_img  = '/scratch/7DayLifetime/munjung/DNN_ROI/train/nu-rec-tpc0-bothplanes.h5'
+        file_mask = '/scratch/7DayLifetime/munjung/DNN_ROI/train/nu-tru-tpc0-bothplanes.h5'
         
+#        rebin = [1, 10]
+#        x_range = [800, 1600]
+#        y_range = [0, 600]
         rebin = [1, 10]
-        x_range = [800, 1600]
-        y_range = [0, 600]
-        z_scale = 4000
+        x_range = [0, 1984]
+        y_range = [0, 3500]
+        z_scale = 2000
         
         print('''
         file_img: {}
@@ -126,6 +135,9 @@ def train_net(net,
         print('Starting epoch {}/{}.'.format(epoch, nepoch))
         net.train()
 
+        np.random.seed(epoch)
+        np.random.shuffle(iddataset['train'])
+
         train = zip(
           h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, rebin, x_range, y_range, z_scale),
           h5u.get_masks(file_mask,   iddataset['train'], ma_tags, rebin, x_range, y_range, truth_th)
@@ -134,22 +146,23 @@ def train_net(net,
           h5u.get_chw_imgs(file_img, iddataset['val'],   im_tags, rebin, x_range, y_range, z_scale),
           h5u.get_masks(file_mask,   iddataset['val'],   ma_tags, rebin, x_range, y_range, truth_th)
         )
-        eval_data = []
-        for i in range(len(eval_imgs)):
-            id_eval = [0]
-            eval_data.append(
-                zip(
-                    h5u.get_chw_imgs(eval_imgs[i], id_eval,   im_tags, rebin, x_range, y_range, z_scale),
-                    h5u.get_masks(eval_masks[i],   id_eval,   ma_tags, rebin, x_range, y_range, truth_th)
-                )
-            )
+#        eval_data = []
+#        for i in range(len(eval_imgs)):
+#            #id_eval = [0]
+#            id_eval = list(0+np.arange(20))
+#            eval_data.append(
+#                zip(
+#                    h5u.get_chw_imgs(eval_imgs[i], id_eval,   im_tags, rebin, x_range, y_range, z_scale),
+#                    h5u.get_masks(eval_masks[i],   id_eval,   ma_tags, rebin, x_range, y_range, truth_th)
+#                )
+#            )
 
         epoch_loss = 0
 
-        for i, b in enumerate(batch(train, batch_size)):
+        for i, b in tqdm(enumerate(batch(train, batch_size))):
             imgs = np.array([i[0] for i in b]).astype(np.float32)
             true_masks = np.array([i[1] for i in b])
-
+            
             imgs = torch.from_numpy(imgs)
             true_masks = torch.from_numpy(true_masks)
 
@@ -181,19 +194,33 @@ def train_net(net,
             print('Checkpoint e{} saved !'.format(epoch))
 
         if True:
-            val1, val2 = itertools.tee(val, 2)
-            
-            val_dice = eval_dice(net, val1, gpu)
-            print('Validation Dice Coeff: {:.4f}, {:.6f}'.format(epoch, val_dice))
-            print('{:.4f}, {:.6f}'.format(epoch, val_dice), file=outfile_eval_dice, flush=True)
+            net.eval()
+            with torch.no_grad():
+                val1, val2 = itertools.tee(val, 2)
+                
+                val_dice = eval_dice(net, val1, gpu)
+                print('Validation Dice Coeff: {:.4f}, {:.6f}'.format(epoch, val_dice))
+                print('{:.4f}, {:.6f}'.format(epoch, val_dice), file=outfile_eval_dice, flush=True)
+                if val_dice > best_val_dice:
+                    best_val_dice = val_dice
+                    torch.save(net.state_dict(),
+                      dir_checkpoint + 'best_dice.pth')
+                    print('*********New Best Dice Coeff: {:.4f}'.format(best_val_dice))
 
-            val_loss = eval_loss(net, criterion, val2, gpu)
-            print('Validation Loss: {:.4f}, {:.6f}'.format(epoch, val_loss))
-            print('{:.4f}, {:.6f}'.format(epoch, val_loss), file=outfile_eval_loss, flush=True)
-            
-            for data, out in zip(eval_data,outfile_ep):
-                ep = eval_eff_pur(net, data, 0.5, gpu)
-                print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(epoch, ep[0], ep[1], ep[2], ep[3]), file=out, flush=True)
+
+                val_loss = eval_loss(net, criterion, val2, gpu)
+                print('Validation Loss: {:.4f}, {:.6f}'.format(epoch, val_loss))
+                print('{:.4f}, {:.6f}'.format(epoch, val_loss), file=outfile_eval_loss, flush=True)
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    torch.save(net.state_dict(),
+                      dir_checkpoint + 'best_loss.pth')
+                    print('*********New Best Loss: {:.4f}'.format(best_val_loss))
+
+                
+#                for data, out in zip(eval_data,outfile_ep):
+#                    ep = eval_eff_pur(net, data, 0.5, gpu)
+#                    print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(epoch, ep[0], ep[1], ep[2], ep[3]), file=out, flush=True)
             
 
 
@@ -236,8 +263,9 @@ if __name__ == '__main__':
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
     im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
     # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
-    ma_tags = ['frame_ductor0']
+    ma_tags = ['frame_deposplat0']
     truth_th = 100
+#    truth_th = 0
 
     net = UNet(len(im_tags), len(ma_tags))
     # net = UResNet(len(im_tags), len(ma_tags))

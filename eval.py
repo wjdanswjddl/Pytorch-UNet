@@ -56,7 +56,7 @@ if __name__ == "__main__":
     im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
     # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
 
-    ma_tags = ['frame_ductor0']
+    ma_tags = ['frame_deposplat0']
 
     print("Loading model {}".format(args.model))
     if args.model.endswith(".ts"):
@@ -93,30 +93,31 @@ if __name__ == "__main__":
     
     # u plane
     eval_labels = [
-        '75-75',
-        '80-80',
-        '82-82',
-        '85-85',
-        # '75-87',
-        # '85-87',
-        '87-87',
+        '75-80',
+        '80-82',
+        '82-85',
+        '85-87',
         ]
     eval_imgs = []
     eval_masks = []
     for label in eval_labels:
-        eval_imgs.append('eval-jinst-init-sub/eval-'+label+'/g4-rec-0.h5')
-        eval_masks.append('eval-jinst-init-sub/eval-'+label+'/g4-tru-0.h5') 
+        eval_imgs.append('/scratch/7DayLifetime/munjung/DNN_ROI/eval/'+label+'-rec-tpc0_plane0.h5')
+        eval_masks.append('/scratch/7DayLifetime/munjung/DNN_ROI/eval/'+label+'-tru-tpc0_plane0.h5')
             
-    rebin = [1, 10]
+    # rebin = [1, 10]
+    rebin = [1,2]
     # x_range = [0, 800]
-    x_range = [800, 1600]
-    y_range = [0, 600]
-    z_scale = 4000
+    # x_range = [800, 1600]
+    x_range = [0,1984]
+    # y_range = [0, 600]
+    y_range = [0,3500]
+    z_scale = 2000
     truth_th = 100
 
     eval_data = []
     for i in range(len(eval_imgs)):
-        id_eval = [100]
+        id_eval = list(0+np.arange(20))
+        #id_eval = [0]
         eval_data.append(
             zip(
                 h5u.get_chw_imgs(eval_imgs[i], id_eval,   im_tags, rebin, x_range, y_range, z_scale),

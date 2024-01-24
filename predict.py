@@ -90,7 +90,8 @@ def get_output_filenames(args):
         for f in in_files:
             pathsplit = os.path.splitext(f)
             # out_files.append("{}_OUT{}".format(pathsplit[0], pathsplit[1]))
-            out_files.append("{}_OUT{}".format(pathsplit[0], '.jpg'))
+            # out_files.append("{}_OUT{}".format(pathsplit[0], '.jpg'))
+            out_files.append("{}_OUT{}".format("/home/munjung/DNN_ROI/figures/predict/", '.jpg'))
     elif len(in_files) != len(args.output):
         print("Error : Input files and output files are not of the same length")
         raise SystemExit()
@@ -144,9 +145,8 @@ if __name__ == "__main__":
         for event in events:
             # img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [0, 800], [0, 600], 4000) # U
             # img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [800, 1600], [0, 600], 4000) # V
-            img = h5u.get_hwc_img(fn, event, im_tags, [1, 10], [476, 952], [0, 600], 4000) # PDVD, V
+            img = h5u.get_hwc_img(fn, event, im_tags, [1, 2], [0, 1984], [0, 3500], 2000) # V
 
-            print(img.shape)
             if img.shape[0] < img.shape[1]:
                 print("Error: image height larger than the width")
 
@@ -158,9 +158,9 @@ if __name__ == "__main__":
                                 use_gpu=not args.cpu)
 
             if args.viz:
-                print("Visualizing results for image {}, close to continue ...".format(fn))
-                print(f'event: {event}')
-                h5u.plot_mask(mask)
+                print("Visualizing results for image {}, event {}, close to continue ...".format(fn, event))
+                last_file_path = os.path.basename(fn)
+                h5u.plot_mask(mask, savename="/home/munjung/DNN_ROI/figures/predict/{}_{}".format(last_file_path, event))
                 # h5u.plot_img(img)
 
             if not args.no_save:
@@ -168,4 +168,4 @@ if __name__ == "__main__":
                 result = mask_to_image(mask)
                 result.save(out_files[i])
 
-                print("Mask saved to {}".format(out_files[i]))
+#                print("Mask saved to {}".format(out_files[i]))

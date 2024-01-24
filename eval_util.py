@@ -38,9 +38,13 @@ def eval_loss(net, criterion, dataset, gpu=False):
             img = img.cuda()
             true_mask = true_mask.cuda()
 
-        masks_pred = net(img)
-        masks_probs_flat = masks_pred.view(-1)
-        true_masks_flat = true_mask.view(-1)
+        if gpu:
+            img = img.cuda()
+            true_mask = true_mask.cuda()
+
+        masks_pred = net(img)[0]
+        masks_probs_flat = masks_pred.reshape(-1)
+        true_masks_flat = true_mask.reshape(-1)
 
         loss = criterion(masks_probs_flat, true_masks_flat)
         tot += loss.item()
@@ -73,7 +77,7 @@ def eval_roi(f0, f1, th0 = 0, th1 = 0.5):
                 end = it
     if den <= 0:
         return 0
-    print("eval_roi: ", num, "/", den, " = ", (num)/den*100, "%")
+    # print("eval_roi: ", num, "/", den, " = ", (num)/den*100, "%")
     # return [num, den]
     return num/den
 
@@ -91,7 +95,7 @@ def eval_pixel(f0, f1, th0 = 0, th1 = 0.5):
     den = np.count_nonzero(f0m)
     if den <= 0:
         return 0
-    print("eval_pixel: ", num, "/", den, " = ", (num)/den*100, "%")
+    # print("eval_pixel: ", num, "/", den, " = ", (num)/den*100, "%")
     # return [num, den]
     return num/den
 
@@ -125,9 +129,14 @@ def eval_eff_pur(net, dataset, th=0.5, gpu=False):
     pur_pix = pur_pix/(i+1)
     eff_roi = eff_roi/(i+1)
     pur_roi = pur_roi/(i+1)
-    print('eff_pix: ', eff_pix)
-    print('pur_pix: ', pur_pix)
-    print('eff_roi: ', eff_roi)
-    print('pur_roi: ', pur_roi)
+    # n = len(dataset)
+    # eff_pix = eff_pix/(n+1)
+    # pur_pix = pur_pix/(n+1)
+    # eff_roi = eff_roi/(n+1)
+    # pur_roi = pur_roi/(n+1)
+    # print('eff_pix: ', eff_pix)
+    # print('pur_pix: ', pur_pix)
+    # print('eff_roi: ', eff_roi)
+    # print('pur_roi: ', pur_roi)
 
     return [eff_pix, pur_pix, eff_roi, pur_roi]
