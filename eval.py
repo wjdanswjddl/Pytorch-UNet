@@ -10,7 +10,7 @@ from unet import UNet
 from uresnet import UResNet
 from nestedunet import NestedUNet
 
-from eval_util import eval_dice, eval_loss, eval_eff_pur
+from eval_util_test import eval_dice, eval_loss, eval_eff_pur
 from utils import h5_utils as h5u
 from matplotlib import cm
 
@@ -53,10 +53,10 @@ if __name__ == "__main__":
     torch.set_num_threads(1)
 
     # im_tags = ['frame_tight_lf0', 'frame_loose_lf0'] #lt
-    im_tags = ['frame_loose_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # l23
+    im_tags = ['frame_loose_lf1', 'frame_mp2_roi1', 'frame_mp3_roi1']    # l23
     # im_tags = ['frame_loose_lf0', 'frame_tight_lf0', 'frame_mp2_roi0', 'frame_mp3_roi0']    # lt23
 
-    ma_tags = ['frame_deposplat0']
+    ma_tags = ['frame_deposplat1']
 
     print("Loading model {}".format(args.model))
     if args.model.endswith(".ts"):
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             net.cpu()
     else:
         net = UNet(len(im_tags), 1)
-        # net = UResNet(len(im_tags), 1)
+        #net = UResNet(len(im_tags), 1)
         # net = NestedUNet(len(im_tags), 1)
 
         if args.gpu:
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     print("Model loaded !")
 
-    dir_out = 'out-eval/'
+    dir_out = 'out-eval/UNet/'
     # v plane
     # eval_labels = [
     #     '75-75',
@@ -101,11 +101,11 @@ if __name__ == "__main__":
     eval_imgs = []
     eval_masks = []
     for label in eval_labels:
-        eval_imgs.append('/scratch/7DayLifetime/munjung/DNN_ROI/eval/'+label+'-rec-tpc0_plane0.h5')
-        eval_masks.append('/scratch/7DayLifetime/munjung/DNN_ROI/eval/'+label+'-tru-tpc0_plane0.h5')
+        eval_imgs.append('/scratch/7DayLifetime/abhat/wirecell/dnn_roi/'+'tpc1_plane1_'+label+'-rec.h5')
+        eval_masks.append('/scratch/7DayLifetime/abhat/wirecell/dnn_roi/'+'tpc1_plane1_'+label+'-tru.h5')
             
-    # rebin = [1, 10]
-    rebin = [1,2]
+    rebin = [1, 10]
+    # rebin = [1,2]
     # x_range = [0, 800]
     # x_range = [800, 1600]
     x_range = [0,1984]

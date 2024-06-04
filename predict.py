@@ -91,7 +91,7 @@ def get_output_filenames(args):
             pathsplit = os.path.splitext(f)
             # out_files.append("{}_OUT{}".format(pathsplit[0], pathsplit[1]))
             # out_files.append("{}_OUT{}".format(pathsplit[0], '.jpg'))
-            out_files.append("{}_OUT{}".format("/home/munjung/DNN_ROI/figures/predict/", '.jpg'))
+            out_files.append("{}_OUT{}".format("/home/abhat/wirecell_sbnd/Pytorch-UResNet/predict", '.jpg'))
     elif len(in_files) != len(args.output):
         print("Error : Input files and output files are not of the same length")
         raise SystemExit()
@@ -124,8 +124,8 @@ if __name__ == "__main__":
         else:
             net.cpu()
     else:
-        net = UNet(len(im_tags), 1)
-        # net = UResNet(len(im_tags), 1)
+        #net = UNet(len(im_tags), 1)
+        net = UResNet(len(im_tags), 1)
         # net = NestedUNet(len(im_tags), 1)
 
         if not args.cpu:
@@ -160,7 +160,7 @@ if __name__ == "__main__":
             if args.viz:
                 print("Visualizing results for image {}, event {}, close to continue ...".format(fn, event))
                 last_file_path = os.path.basename(fn)
-                h5u.plot_mask(mask, savename="/home/munjung/DNN_ROI/figures/predict/{}_{}".format(last_file_path, event))
+                h5u.plot_mask(mask, savename="/home/abhat/wirecell_sbnd/Pytorch-UResNet/predict/{}_{}".format(last_file_path, event))
                 # h5u.plot_img(img)
 
             if not args.no_save:

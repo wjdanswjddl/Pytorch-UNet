@@ -1,8 +1,6 @@
-
 # initial arxiv submission
-name=unet-plane0
-#model=checkpoints/best_model_20231005.pth
-model=checkpoints/tpc0-bothplanes_shuffle_crop/best_dice.pth
+name=plane1
+model=/home/abhat/wirecell_sbnd/Pytorch-UNet/checkpoints/UNet/tpc1_bothplanes_with_prolongedtrks/best_loss.pth
 time python eval.py -g --model ${model} -o ${name}
 
 

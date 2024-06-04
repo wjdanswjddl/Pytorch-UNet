@@ -4,12 +4,16 @@ import numpy as np
 
 from dice_loss import dice_coeff
 
-def eval_dice(net, loader, gpu=False):
+
+def eval_dice(net, dataset, gpu=False):
     """Evaluation without the densecrf with the dice coefficient"""
     tot = 0
-    for i, b in enumerate(loader):
+    for i, b in enumerate(dataset):
         img = b[0]
         true_mask = b[1]
+
+        img = torch.from_numpy(img).unsqueeze(0)
+        true_mask = torch.from_numpy(true_mask).unsqueeze(0)
 
         if gpu:
             img = img.cuda()
@@ -21,11 +25,18 @@ def eval_dice(net, loader, gpu=False):
         tot += dice_coeff(mask_pred, true_mask).item()
     return tot / (i + 1)
 
-def eval_loss(net, criterion, loader, gpu=False):
+def eval_loss(net, criterion, dataset, gpu=False):
     tot = 0
-    for i, b in enumerate(loader):
+    for i, b in enumerate(dataset):
         img = b[0]
         true_mask = b[1]
+
+        img = torch.from_numpy(img).unsqueeze(0)
+        true_mask = torch.from_numpy(true_mask).unsqueeze(0)
+
+        if gpu:
+            img = img.cuda()
+            true_mask = true_mask.cuda()
 
         if gpu:
             img = img.cuda()
@@ -88,14 +99,16 @@ def eval_pixel(f0, f1, th0 = 0, th1 = 0.5):
     # return [num, den]
     return num/den
 
-def eval_eff_pur(net, loader, th=0.5, gpu=False):
+def eval_eff_pur(net, dataset, th=0.5, gpu=False):
     eff_pix = 0
     pur_pix = 0
     eff_roi = 0
     pur_roi = 0
-    for i, b in enumerate(loader):
+    for i, b in enumerate(dataset):
         img = b[0]
         mask_true = b[1]
+
+        img = torch.from_numpy(img).unsqueeze(0)
 
         if gpu:
             img = img.cuda()
@@ -103,13 +116,11 @@ def eval_eff_pur(net, loader, th=0.5, gpu=False):
         with torch.no_grad():
             mask_pred = net(img).squeeze().cpu().numpy()
 
-        mask_true = mask_true.squeeze().cpu().numpy()
-
         mask_true = np.transpose(mask_true, [1, 0])
         mask_pred = np.transpose(mask_pred, [1, 0])
 
         eff_pix = eff_pix + eval_pixel(mask_true, mask_pred, 0.5, th)
-        pur_pix = eff_pix + eval_pixel(mask_pred, mask_true, th, 0.5)
+        pur_pix = pur_pix + eval_pixel(mask_pred, mask_true, th, 0.5)
 
         eff_roi = eff_roi + eval_roi(mask_true, mask_pred, 0.5, th)
         pur_roi = pur_roi + eval_roi(mask_pred, mask_true, th, 0.5)
@@ -118,7 +129,7 @@ def eval_eff_pur(net, loader, th=0.5, gpu=False):
     pur_pix = pur_pix/(i+1)
     eff_roi = eff_roi/(i+1)
     pur_roi = pur_roi/(i+1)
-    # n = len(loader)
+    # n = len(dataset)
     # eff_pix = eff_pix/(n+1)
     # pur_pix = pur_pix/(n+1)
     # eff_roi = eff_roi/(n+1)
