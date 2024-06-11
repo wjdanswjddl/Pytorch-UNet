@@ -1,0 +1,29 @@
+{
+  "dir_checkpoint": "log/test",
+
+  "batch_size":    2,
+  "learning_rate": 0.01,
+
+  "sample": "/scratch/7DayLifetime/munjung/DNN_ROI/train/smeared/tpc0-plane0-idx1000_2000-rec.h5",
+  "target": "/scratch/7DayLifetime/munjung/DNN_ROI/train/smeared/tpc0-plane0-idx1000_2000-tru.h5",
+  "test_dir": "/scratch/7DayLifetime/munjung/DNN_ROI/eval",
+  "test_tags": ["75-80"],
+
+  "start_epoch": 0,
+  "nepoch":      500,
+  "start_train": 0, 
+  "ntrain":      400,
+  "start_val":   400, 
+  "nval":        100,
+  "start_test":  0, 
+  "ntest":       1,
+
+  "scale":       [1,10],
+  "x_range":     [0,1984],
+  "y_range":     [0,3500],
+  "z_scale":     2000,
+  "truth_th":    100,
+
+  "im_tags": ["frame_loose_lf0", "frame_mp2_roi0", "frame_mp3_roi0"],
+  "ma_tags": ["frame_deposplat0"]
+}
