@@ -211,7 +211,7 @@ def train_net(net,
         net.train()
         epoch_loss = 0
         epoch_dice = 0
-        for i, b in tqdm(enumerate(batch(train, batch_size))):
+        for i, b in tqdm(enumerate(batch(train, batch_size)), total=N_train//batch_size+1, desc='Training'):
             #TODO: float32 is unnecessary
             imgs       = np.array([i[0] for i in b]).astype(np.float32)
             imgs       = torch.from_numpy(imgs)
@@ -227,7 +227,7 @@ def train_net(net,
             true_masks_flat  = true_masks.view(-1)
 
             loss = criterion(masks_probs_flat, true_masks_flat)
-            print('{:.4f}, {:.6f}'.format(epoch+i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
+            print('{:.4f}, {:.6f}'.format(epoch + i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
             epoch_loss += loss.item()
 
             scheduler.zero_grad()
@@ -274,6 +274,13 @@ def train_net(net,
 
             #TODO: evaluation on test samples
             test1, test2, test3 = itertools.tee(test, 3)
+            # pixel, roi evaluation
+            ep = eval_eff_pur(net, test1, 0.5, args.gpu)
+            print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format("test", ep[0], ep[1], ep[2], ep[3]))
+            print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format("test", ep[0], ep[1], ep[2], ep[3]), file=outfile_ep)
+            writer.add_scalar('test/pixel_eff', ep[0], epoch)
+            writer.add_scalar('test/pixel_pur', ep[1], epoch)
+
             true_img, pred_img = eval_img(net, test3, gpu)
             test_true_img, test_pred_img = log_fig(true_img, pred_img)
             writer.add_figure("test/true", test_true_img, epoch)

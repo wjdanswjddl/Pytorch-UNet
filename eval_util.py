@@ -7,8 +7,13 @@ from dice_loss import dice_coeff
 
 def eval_dice(net, dataset, gpu=False):
     """Evaluation without the densecrf with the dice coefficient"""
+    i_tot = 0
     tot = 0
+    # print("dataset size: ", len(dataset))
+    # print("dataset shape: ", dataset[0][0].shape)
+    # print("dataset[0]: ", dataset[0])
     for i, b in enumerate(dataset):
+        i_tot = i
         img = b[0]
         true_mask = b[1]
 
@@ -23,11 +28,13 @@ def eval_dice(net, dataset, gpu=False):
         mask_pred = (mask_pred > 0.5).float()
 
         tot += dice_coeff(mask_pred, true_mask).item()
-    return tot / (i + 1)
+    return tot / (i_tot + 1)
 
 def eval_loss(net, criterion, dataset, gpu=False):
+    i_tot = 0
     tot = 0
     for i, b in enumerate(dataset):
+        i_tot = i
         img = b[0]
         true_mask = b[1]
 
@@ -38,13 +45,17 @@ def eval_loss(net, criterion, dataset, gpu=False):
             img = img.cuda()
             true_mask = true_mask.cuda()
 
-        masks_pred = net(img)
-        masks_probs_flat = masks_pred.view(-1)
-        true_masks_flat = true_mask.view(-1)
+        if gpu:
+            img = img.cuda()
+            true_mask = true_mask.cuda()
+
+        masks_pred = net(img)[0]
+        masks_probs_flat = masks_pred.reshape(-1)
+        true_masks_flat = true_mask.reshape(-1)
 
         loss = criterion(masks_probs_flat, true_masks_flat)
         tot += loss.item()
-    return tot / (i + 1)
+    return tot / (i_tot + 1)
 
 def eval_roi(f0, f1, th0 = 0, th1 = 0.5):
     '''
@@ -73,7 +84,7 @@ def eval_roi(f0, f1, th0 = 0, th1 = 0.5):
                 end = it
     if den <= 0:
         return 0
-    print("eval_roi: ", num, "/", den, " = ", (num)/den*100, "%")
+    # print("eval_roi: ", num, "/", den, " = ", (num)/den*100, "%")
     # return [num, den]
     return num/den
 
@@ -91,7 +102,7 @@ def eval_pixel(f0, f1, th0 = 0, th1 = 0.5):
     den = np.count_nonzero(f0m)
     if den <= 0:
         return 0
-    print("eval_pixel: ", num, "/", den, " = ", (num)/den*100, "%")
+    # print("eval_pixel: ", num, "/", den, " = ", (num)/den*100, "%")
     # return [num, den]
     return num/den
 
@@ -104,13 +115,19 @@ def eval_eff_pur(net, dataset, th=0.5, gpu=False):
         img = b[0]
         mask_true = b[1]
 
-        img = torch.from_numpy(img).unsqueeze(0)
+        if net == "trad":
+            # print("Traditional ROI prediction")
+            mask_pred = img
 
-        if gpu:
-            img = img.cuda()
-
-        with torch.no_grad():
-            mask_pred = net(img).squeeze().cpu().numpy()
+        else:
+            # print("DNN ROI prediction")
+            img = torch.from_numpy(img).unsqueeze(0)
+    
+            if gpu:
+                img = img.cuda()
+    
+            with torch.no_grad():
+                mask_pred = net(img).squeeze().cpu().numpy()
 
         mask_true = np.transpose(mask_true, [1, 0])
         mask_pred = np.transpose(mask_pred, [1, 0])
@@ -125,9 +142,5 @@ def eval_eff_pur(net, dataset, th=0.5, gpu=False):
     pur_pix = pur_pix/(i+1)
     eff_roi = eff_roi/(i+1)
     pur_roi = pur_roi/(i+1)
-    print('eff_pix: ', eff_pix)
-    print('pur_pix: ', pur_pix)
-    print('eff_roi: ', eff_roi)
-    print('pur_roi: ', pur_roi)
 
     return [eff_pix, pur_pix, eff_roi, pur_roi]

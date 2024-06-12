@@ -16,9 +16,6 @@ def split_img_into_squares(img):
 def hwc_to_chw(img):
     return np.transpose(img, axes=[2, 0, 1])
 
-def chw_to_hwc(img):
-    return np.transpose(img, axes=[1, 2, 0])
-
 def resize_and_crop(pilimg, scale=0.5, final_height=None):
     w = pilimg.size[0]
     h = pilimg.size[1]
