@@ -10,22 +10,26 @@ import json
 
 import math
 import numpy as np
+import pandas as pd
 
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 from torch import optim
 from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
 
 from unet import UNet
 from uresnet import UResNet
 from nestedunet import NestedUNet
 
-from eval_util import eval_dice, eval_loss, eval_eff_pur
+from eval_util import eval_dice_loss, eval_eff_pur
 from dice_loss import dice_coeff
 from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
 from utils import h5_utils as h5u
-import matplotlib.pyplot as plt
+from utils import log_fig, ep_fig
+from hdf5_dataset import HDF5Dataset
+
 
 def eval_img(net, dataset, gpu=False):
     for i, b in enumerate(dataset):
@@ -41,26 +45,6 @@ def eval_img(net, dataset, gpu=False):
         mask_pred = net(img)[0]
 
         return true_mask.cpu().numpy(), mask_pred.cpu().numpy()
-
-def log_fig(true_img, pred_img, vval=1):
-    fig, ax = plt.subplots(figsize=(8, 5))
-    true_fig = plt.imshow(true_img.T, 
-                          aspect="auto", origin="lower", vmin=-vval, vmax=vval, cmap="bwr")
-    plt.xlabel("wire")
-    plt.ylabel("tick")
-    plt.title("True")
-    plt.colorbar()
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    pred_fig = plt.imshow(pred_img.T, 
-                          aspect="auto", origin="lower", vmin=-vval, vmax=vval, cmap="bwr")
-    plt.xlabel("wire")
-    plt.ylabel("tick")
-    plt.title("Prediction")
-    plt.colorbar()
-
-    return true_fig.get_figure(), pred_fig.get_figure()
-
 
 def print_lr(optimizer):
     for param_group in optimizer.param_groups:
@@ -96,6 +80,7 @@ def train_net(net,
               x_range        = [0,1984],
               y_range        = [0,3500],
               z_scale        = 2000,
+              dtype          = "float32",
               truth_th       = 100,
               im_tags        = ['frame_loose_lf1', 'frame_mp2_roi1', 'frame_mp3_roi1'],
               ma_tags        = ['frame_deposplat1']):
@@ -110,6 +95,7 @@ def train_net(net,
     outfile_dice       = open(dir_checkpoint+'/train-dice.csv','a+')
     outfile_eval_loss  = open(dir_checkpoint+'/eval-loss.csv','a+')
     outfile_eval_dice  = open(dir_checkpoint+'/eval-dice.csv','a+')
+    outfile_ep         = open(dir_checkpoint+'/ep.csv','a+')
 
     DT_STR = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     writer = SummaryWriter(dir_checkpoint+"/tensorboard/"+DT_STR)
@@ -123,21 +109,23 @@ def train_net(net,
                truth_th), 
           file=outfile_log, flush=True)
 
-    file_img       = sample
-    file_mask      = target
-    file_test_img  = test_dir+"/tpc0_plane0_85-87_1000-rec.h5"
-    file_test_mask = test_dir+"/tpc0_plane0_85-87_1000-tru.h5"
+    files_img       = sample
+    files_mask      = target
+    file_test_imgs  = [[test_dir+"/tpc0_plane0_{}_1000-rec.h5".format(tag) for tag in test_tags],
+                       [test_dir+"/tpc0_plane1_{}_1000-rec.h5".format(tag) for tag in test_tags]]
+    file_test_masks = [[test_dir+"/tpc0_plane0_{}_1000-tru.h5".format(tag) for tag in test_tags],
+                       [test_dir+"/tpc0_plane1_{}_1000-tru.h5".format(tag) for tag in test_tags]]
 
     print('''
-    file_img: {}
-    file_mask: {}
-    '''.format(file_img, 
-               file_mask), file=outfile_log, flush=True)
+    files_img: {}
+    files_mask: {}
+    '''.format(files_img, 
+               files_mask), file=outfile_log, flush=True)
 
     iddataset = {}
-    iddataset['train'] = list(strain+np.arange(ntrain))
-    iddataset['val']   = list(sval+np.arange(nval))
-    iddataset['test']   = list(stest+np.arange(ntest))
+    iddataset['train'] = list(1+strain+np.arange(ntrain))
+    iddataset['val']   = list(1+sval+np.arange(nval))
+    iddataset['test']   = list(1+stest+np.arange(ntest))
     np.random.shuffle(iddataset['train'])
     np.random.shuffle(iddataset['val'])
     np.random.shuffle(iddataset['test'])
@@ -159,6 +147,9 @@ def train_net(net,
         Training size: {}
         Validation size: {}
         Test size: {}
+        Image scale: {}
+        X range: {}
+        Y range: {}
         Checkpoints: {}
         CUDA: {}
     '''.format(nepoch, 
@@ -167,9 +158,30 @@ def train_net(net,
                N_train,
                N_val, 
                N_test,
+               str(img_scale),
+               str(x_range),
+               str(y_range),
                str(save_cp), 
                str(gpu)), 
           file=outfile_log, flush=True)
+
+    # configure dataloader
+    num_workers=0  # Number of workers for data loading
+    pin_memory=False  # Use pinned memory for data loading
+    drop_last=False  # Drop the last incomplete batch
+    prefetch_factor=2  # Number of batches to prefetch
+    persistent_workers=False  # Keep data loading workers persistent
+    
+    data_loader_args = {
+        'batch_size': batch_size,
+        'shuffle': True,  # Shuffle training data
+        'num_workers': num_workers,
+        'pin_memory': pin_memory,
+        'drop_last': drop_last,
+        'persistent_workers': persistent_workers
+    }
+    if num_workers > 0:
+        data_loader_args['prefetch_factor'] = prefetch_factor
 
     # train
     if sepoch > 0 :
@@ -190,18 +202,49 @@ def train_net(net,
         print('Starting epoch {}/{}.'.format(epoch, nepoch))
 
         # load data
-        train = zip(
-          h5u.get_chw_imgs(file_img, iddataset['train'], im_tags, img_scale, x_range, y_range, z_scale),
-          h5u.get_masks(file_mask,   iddataset['train'], ma_tags, img_scale, x_range, y_range, truth_th)
+        train_dataset = HDF5Dataset(
+            files_img=files_img,
+            files_mask=files_mask,
+            img_tags=im_tags,
+            mask_tags=ma_tags,
+            indices=iddataset['train'],
+            rebin=img_scale,
+            x_range=x_range,
+            y_range=y_range,
+            z_scale=z_scale,
+            truth_th=truth_th
         )
-        val = zip(
-          h5u.get_chw_imgs(file_img, iddataset['val'], im_tags, img_scale, x_range, y_range, z_scale),
-          h5u.get_masks(file_mask,   iddataset['val'], ma_tags, img_scale, x_range, y_range, truth_th)
+        train_loader = DataLoader(train_dataset, **data_loader_args)
+
+        val_dataset = HDF5Dataset(
+            files_img=files_img,
+            files_mask=files_mask,
+            img_tags=im_tags,
+            mask_tags=ma_tags,
+            indices=iddataset['val'],
+            rebin=img_scale,
+            x_range=x_range,
+            y_range=y_range,
+            z_scale=z_scale,
+            truth_th=truth_th
         )
-        test = zip(
-          h5u.get_chw_imgs(file_test_img, iddataset['test'], im_tags, img_scale, x_range, y_range, z_scale),
-          h5u.get_masks(file_test_mask,   iddataset['test'], ma_tags, img_scale, x_range, y_range, truth_th)
-        )
+        val_loader = DataLoader(val_dataset, **data_loader_args)
+
+        tests_p0 = []
+        tests_p1 = []
+        for tidx, tag in enumerate(test_tags):
+            tests_p0.append(
+              zip(
+                h5u.get_chw_imgs(file_test_imgs[0][tidx], iddataset['test'], im_tags, img_scale, x_range, y_range, z_scale),
+                h5u.get_masks(file_test_masks[0][tidx],   iddataset['test'], ma_tags, img_scale, x_range, y_range, truth_th)
+              )
+            )
+            tests_p1.append(
+              zip(
+                h5u.get_chw_imgs(file_test_imgs[1][tidx], iddataset['test'], im_tags, img_scale, x_range, y_range, z_scale),
+                h5u.get_masks(file_test_masks[1][tidx],   iddataset['test'], ma_tags, img_scale, x_range, y_range, truth_th)
+              )
+            )
 
         # train
         scheduler = optimizer
@@ -211,12 +254,17 @@ def train_net(net,
         net.train()
         epoch_loss = 0
         epoch_dice = 0
-        for i, b in tqdm(enumerate(batch(train, batch_size)), total=N_train//batch_size+1, desc='Training'):
+        #for i, b in tqdm(enumerate(batch(train, batch_size)), total=N_train//batch_size+1, desc='Training'):
+        for imgs, true_masks in tqdm(train_loader):
             #TODO: float32 is unnecessary
-            imgs       = np.array([i[0] for i in b]).astype(np.float32)
-            imgs       = torch.from_numpy(imgs)
-            true_masks = np.array([i[1] for i in b])
-            true_masks = torch.from_numpy(true_masks)
+            #imgs       = np.array([i[0] for i in b]) #.astype(np.float32)
+            #if dtype == "float16":
+            #    imgs = imgs.astype(np.float16)
+            #else:
+            #    imgs = imgs.astype(np.float32)
+            #imgs       = torch.from_numpy(imgs)
+            #true_masks = np.array([i[1] for i in b])
+            #true_masks = torch.from_numpy(true_masks)
 
             if gpu:
                 imgs       = imgs.cuda()
@@ -227,14 +275,14 @@ def train_net(net,
             true_masks_flat  = true_masks.view(-1)
 
             loss = criterion(masks_probs_flat, true_masks_flat)
-            print('{:.4f}, {:.6f}'.format(epoch + i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
+            #print('{:.4f}, {:.6f}'.format(epoch + i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
             epoch_loss += loss.item()
 
             scheduler.zero_grad()
             loss.backward()
             scheduler.step()
 
-        epoch_loss = epoch_loss / (i + 1)
+        epoch_loss = epoch_loss / len(train_loader)
         print('Epoch finished ! Loss: {:.6f}'.format(epoch_loss))
         print('{:.4f}, {:.6f}'.format(epoch, epoch_loss), file=outfile_loss, flush=True)
         writer.add_scalar('loss/train', epoch_loss, epoch)
@@ -243,18 +291,18 @@ def train_net(net,
             torch.save(net.state_dict(), dir_checkpoint + 'CP{}.pth'.format(epoch))
             print('Checkpoint e{} saved !'.format(epoch))
 
-        # validation
         net.eval()
         with torch.no_grad():
-            val1, val2, val3 = itertools.tee(val, 3)
 
-            val_dice = eval_dice(net, val1, gpu)
+            # validation
+            # val1, val2, val3 = itertools.tee(val_loader, 3)
+
+            val_dice, val_loss = eval_dice_loss(net, val_loader, criterion, gpu)
             if val_dice > best_val_dice:
                 best_val_dice = val_dice
                 torch.save(net.state_dict(), dir_checkpoint + '/best_dice.pth')
                 print('********* New Best Dice Coeff: {:.4f}'.format(best_val_dice))
 
-            val_loss = eval_loss(net, criterion, val2, gpu)
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 torch.save(net.state_dict(), dir_checkpoint + '/best_loss.pth')
@@ -267,24 +315,45 @@ def train_net(net,
             writer.add_scalar('loss/validation', val_loss, epoch)
             writer.add_scalar('dice/validation', val_dice, epoch)
 
-            true_img, pred_img = eval_img(net, val3, gpu)
-            val_true_img, val_pred_img = log_fig(true_img, pred_img)
-            writer.add_figure("val/true", val_true_img, epoch)
-            writer.add_figure("val/pred", val_pred_img, epoch)
+            # test on prolonged tracks
+            test_perf_p0 = {}
+            test_perf_p1 = {}
+            for tidx in range(len(test_tags)):
+                # plane 0 
+                test1_p0, test2_p0 = itertools.tee(tests_p0[tidx], 2)
 
-            #TODO: evaluation on test samples
-            test1, test2, test3 = itertools.tee(test, 3)
-            # pixel, roi evaluation
-            ep = eval_eff_pur(net, test1, 0.5, args.gpu)
-            print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format("test", ep[0], ep[1], ep[2], ep[3]))
-            print('{}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format("test", ep[0], ep[1], ep[2], ep[3]), file=outfile_ep)
-            writer.add_scalar('test/pixel_eff', ep[0], epoch)
-            writer.add_scalar('test/pixel_pur', ep[1], epoch)
+                ep = eval_eff_pur(net, test1_p0, 0.5, args.gpu)
+                print('plane 0, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(test_tags[tidx], ep[0], ep[1], ep[2], ep[3]))
+                print('plane 0, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(test_tags[tidx], ep[0], ep[1], ep[2], ep[3]), file=outfile_ep, flush=True)
+                writer.add_scalar('test/plane0-{}-pixel_eff'.format(test_tags[tidx]), ep[0], epoch)
+                writer.add_scalar('test/plane0-{}-pixel_pur'.format(test_tags[tidx]), ep[1], epoch)
+                test_perf_p0[test_tags[tidx]] = [ep[0], ep[1], ep[2], ep[3]]
 
-            true_img, pred_img = eval_img(net, test3, gpu)
-            test_true_img, test_pred_img = log_fig(true_img, pred_img)
-            writer.add_figure("test/true", test_true_img, epoch)
-            writer.add_figure("test/pred", test_pred_img, epoch)
+                true_img, pred_img = eval_img(net, test2_p0, gpu)
+                test_true_img, test_pred_img = log_fig(true_img, pred_img)
+                writer.add_figure("test/plane0-{}-true".format(test_tags[tidx]), test_true_img, epoch)
+                writer.add_figure("test/plane0-{}-pred".format(test_tags[tidx]), test_pred_img, epoch)
+
+                # plane 1
+                test1_p1, test2_p1 = itertools.tee(tests_p1[tidx], 2)
+
+                ep = eval_eff_pur(net, test1_p1, 0.5, args.gpu)
+                print('plane 1, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(test_tags[tidx], ep[0], ep[1], ep[2], ep[3]))
+                print('plane 1, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(test_tags[tidx], ep[0], ep[1], ep[2], ep[3]), file=outfile_ep, flush=True)
+                writer.add_scalar('test/plane1-{}-pixel_eff'.format(test_tags[tidx]), ep[0], epoch)
+                writer.add_scalar('test/plane1-{}-pixel_pur'.format(test_tags[tidx]), ep[1], epoch)
+                test_perf_p1[test_tags[tidx]] = [ep[0], ep[1], ep[2], ep[3]]
+
+                true_img, pred_img = eval_img(net, test2_p1, gpu)
+                test_true_img, test_pred_img = log_fig(true_img, pred_img)
+                writer.add_figure("test/plane1-{}-true".format(test_tags[tidx]), test_true_img, epoch)
+                writer.add_figure("test/plane1-{}-pred".format(test_tags[tidx]), test_pred_img, epoch)
+
+            test_perf_p0 = pd.DataFrame.from_dict(test_perf_p0)
+            test_perf_p1 = pd.DataFrame.from_dict(test_perf_p1)
+            eff_img, pur_img = ep_fig(test_perf_p0, test_perf_p1, test_tags)
+            writer.add_figure("test/pixel_eff", eff_img, epoch)
+            writer.add_figure("test/pixel_pur", pur_img, epoch)
 
 
 def read_config(cfgname):
@@ -351,6 +420,7 @@ if __name__ == '__main__':
                   x_range        = config["x_range"],
                   y_range        = config["y_range"],
                   z_scale        = config["z_scale"],
+                  dtype          = config["dtype"],
                   truth_th       = config["truth_th"],
                   im_tags        = config["im_tags"],
                   ma_tags        = config["ma_tags"],

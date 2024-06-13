@@ -1,61 +1,69 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
+from tqdm import tqdm
 
 from dice_loss import dice_coeff
 
 
-def eval_dice(net, dataset, gpu=False):
+def eval_dice(net, loader, gpu=False):
     """Evaluation without the densecrf with the dice coefficient"""
-    i_tot = 0
     tot = 0
-    # print("dataset size: ", len(dataset))
-    # print("dataset shape: ", dataset[0][0].shape)
-    # print("dataset[0]: ", dataset[0])
-    for i, b in enumerate(dataset):
-        i_tot = i
-        img = b[0]
-        true_mask = b[1]
-
-        img = torch.from_numpy(img).unsqueeze(0)
-        true_mask = torch.from_numpy(true_mask).unsqueeze(0)
-
+    for img, true_mask in tqdm(loader):
         if gpu:
             img = img.cuda()
             true_mask = true_mask.cuda()
 
-        mask_pred = net(img)[0]
+        mask_pred = net(img)
         mask_pred = (mask_pred > 0.5).float()
-
         tot += dice_coeff(mask_pred, true_mask).item()
-    return tot / (i_tot + 1)
+    return tot / len(loader)
 
-def eval_loss(net, criterion, dataset, gpu=False):
-    i_tot = 0
+def eval_loss(net, criterion, loader, gpu=False):
     tot = 0
-    for i, b in enumerate(dataset):
-        i_tot = i
-        img = b[0]
-        true_mask = b[1]
-
-        img = torch.from_numpy(img).unsqueeze(0)
-        true_mask = torch.from_numpy(true_mask).unsqueeze(0)
-
+    for img, true_mask in tqdm(loader):
         if gpu:
             img = img.cuda()
             true_mask = true_mask.cuda()
 
-        if gpu:
-            img = img.cuda()
-            true_mask = true_mask.cuda()
-
-        masks_pred = net(img)[0]
-        masks_probs_flat = masks_pred.reshape(-1)
-        true_masks_flat = true_mask.reshape(-1)
+        masks_pred = net(img)
+        masks_probs_flat = masks_pred.view(-1)
+        true_masks_flat = true_mask.view(-1)
 
         loss = criterion(masks_probs_flat, true_masks_flat)
         tot += loss.item()
-    return tot / (i_tot + 1)
+    return tot / len(loader)
+
+def eval_dice_loss(net, loader, criterion, gpu=False):
+    """Evaluation without the densecrf with the dice coefficient"""
+    tot_dice = 0
+    tot_loss = 0
+    for img, true_mask in tqdm(loader):
+        if gpu:
+            img = img.cuda()
+            true_mask = true_mask.cuda()
+
+        pred = net(img)
+        pred_mask = (pred > 0.5).float()
+        tot_dice += dice_coeff(pred_mask, true_mask).item()
+
+        pred_flat = pred.view(-1)
+        true_mask_flat = true_mask.view(-1)
+        loss = criterion(pred_flat, true_mask_flat)
+        tot_loss += loss.item()
+
+        dice = tot_dice / len(loader)
+        loss = tot_loss / len(loader)
+    return dice, loss
+
+def eval_img(net, loader, gpu=False):
+    for img, true_mask in tqdm(loader):
+        if gpu:
+            img = img.cuda()
+            true_mask = true_mask.cuda()
+        pred = net(img)
+        return true_mask.cpu().numpy(), pred.cpu().numpy()
+
 
 def eval_roi(f0, f1, th0 = 0, th1 = 0.5):
     '''
