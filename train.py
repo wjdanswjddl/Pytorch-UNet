@@ -247,6 +247,7 @@ def train_net(net,
             )
 
         # train
+
         scheduler = optimizer
         # scheduler = lr_exp_decay(optimizer, lr, 0.04, epoch)
         print(scheduler, file=outfile_log, flush=True)
@@ -254,17 +255,11 @@ def train_net(net,
         net.train()
         epoch_loss = 0
         epoch_dice = 0
-        #for i, b in tqdm(enumerate(batch(train, batch_size)), total=N_train//batch_size+1, desc='Training'):
         for imgs, true_masks in tqdm(train_loader):
-            #TODO: float32 is unnecessary
-            #imgs       = np.array([i[0] for i in b]) #.astype(np.float32)
-            #if dtype == "float16":
-            #    imgs = imgs.astype(np.float16)
-            #else:
-            #    imgs = imgs.astype(np.float32)
-            #imgs       = torch.from_numpy(imgs)
-            #true_masks = np.array([i[1] for i in b])
-            #true_masks = torch.from_numpy(true_masks)
+            if dtype == "float16":
+                imgs = imgs.astype(np.float16)
+            else:
+                imgs = imgs.astype(np.float32)
 
             if gpu:
                 imgs       = imgs.cuda()
@@ -275,7 +270,6 @@ def train_net(net,
             true_masks_flat  = true_masks.view(-1)
 
             loss = criterion(masks_probs_flat, true_masks_flat)
-            #print('{:.4f}, {:.6f}'.format(epoch + i * batch_size / N_train, loss.item()), file=outfile_loss_batch, flush=True)
             epoch_loss += loss.item()
 
             scheduler.zero_grad()
