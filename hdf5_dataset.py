@@ -39,4 +39,4 @@ class HDF5Dataset(Dataset):
         imgs = list(h5u.get_chw_imgs(self.files_img[fileno], [this_ID], this_img_tags, self.rebin, self.x_range, self.y_range, self.z_scale))[0]
         masks = list(h5u.get_masks(self.files_mask[fileno], [this_ID], this_mask_tags, self.rebin, self.x_range, self.y_range, self.truth_th))[0]
         
-        return torch.tensor(imgs), torch.tensor(masks)
+        return torch.tensor(imgs, dtype=torch.float32), torch.tensor(masks, dtype=torch.float32)

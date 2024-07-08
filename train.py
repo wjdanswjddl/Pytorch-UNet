@@ -256,11 +256,6 @@ def train_net(net,
         epoch_loss = 0
         epoch_dice = 0
         for imgs, true_masks in tqdm(train_loader):
-            if dtype == "float16":
-                imgs = imgs.astype(np.float16)
-            else:
-                imgs = imgs.astype(np.float32)
-
             if gpu:
                 imgs       = imgs.cuda()
                 true_masks = true_masks.cuda()
