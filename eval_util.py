@@ -5,6 +5,9 @@ from tqdm import tqdm
 
 from dice_loss import dice_coeff
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+use_amp = True
+
 
 def eval_dice(net, loader, gpu=False):
     """Evaluation without the densecrf with the dice coefficient"""
@@ -14,7 +17,8 @@ def eval_dice(net, loader, gpu=False):
             img = img.cuda()
             true_mask = true_mask.cuda()
 
-        mask_pred = net(img)
+        with torch.autocast(device_type=device, dtype=torch.float16, enabled=use_amp):
+            mask_pred = net(img)
         mask_pred = (mask_pred > 0.5).float()
         tot += dice_coeff(mask_pred, true_mask).item()
     return tot / len(loader)
@@ -26,7 +30,8 @@ def eval_loss(net, criterion, loader, gpu=False):
             img = img.cuda()
             true_mask = true_mask.cuda()
 
-        masks_pred = net(img)
+        with torch.autocast(device_type=device, dtype=torch.float16, enabled=use_amp):
+            masks_pred = net(img)
         masks_probs_flat = masks_pred.view(-1)
         true_masks_flat = true_mask.view(-1)
 
@@ -43,9 +48,11 @@ def eval_dice_loss(net, loader, criterion, gpu=False):
             img = img.cuda()
             true_mask = true_mask.cuda()
 
-        pred = net(img)
-        pred_mask = (pred > 0.5).float()
-        tot_dice += dice_coeff(pred_mask, true_mask).item()
+        with torch.autocast(device_type=device, dtype=torch.float16, enabled=use_amp):
+            pred = net(img)
+            pred_mask = (pred > 0.5)
+            pred_mask = pred_mask.type(torch.float16)
+            tot_dice += dice_coeff(pred_mask, true_mask).item()
 
         pred_flat = pred.view(-1)
         true_mask_flat = true_mask.view(-1)
@@ -61,7 +68,8 @@ def eval_img(net, loader, gpu=False):
         if gpu:
             img = img.cuda()
             true_mask = true_mask.cuda()
-        pred = net(img)
+        with torch.autocast(device_type=device, dtype=torch.float16, enabled=use_amp):
+            pred = net(img)
         return true_mask.cpu().numpy(), pred.cpu().numpy()
 
 
@@ -135,7 +143,8 @@ def eval_eff_pur(net, dataset, th=0.5, gpu=False):
                 img = img.cuda()
     
             with torch.no_grad():
-                mask_pred = net(img).squeeze().cpu().numpy()
+                with torch.autocast(device_type=device, dtype=torch.float16, enabled=use_amp):
+                    mask_pred = net(img).squeeze().cpu().numpy()
 
         mask_true = np.transpose(mask_true, [1, 0])
         mask_pred = np.transpose(mask_pred, [1, 0])

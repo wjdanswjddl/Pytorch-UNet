@@ -31,6 +31,10 @@ from utils import log_fig, ep_fig
 from hdf5_dataset import HDF5Dataset
 
 
+use_amp = True
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
 def eval_img(net, dataset, gpu=False):
     for i, b in enumerate(dataset):
         img       = b[0]
@@ -42,7 +46,8 @@ def eval_img(net, dataset, gpu=False):
             img       = img.cuda()
             true_mask = true_mask.cuda()
 
-        mask_pred = net(img)[0]
+        with torch.autocast(device_type=device, dtype=torch.float16, enabled=use_amp):
+            mask_pred = net(img)[0]
 
         return true_mask.cpu().numpy(), mask_pred.cpu().numpy()
 
@@ -192,7 +197,8 @@ def train_net(net,
                           momentum=0.9, 
                           weight_decay=0.0005)
     # optimizer = optim.Adam(net.parameters(), lr=lr)
-    criterion = nn.BCELoss()
+    #criterion = nn.BCELoss()
+    criterion = nn.BCEWithLogitsLoss()
 
     n_update_train = 0
     n_update_val = 0
@@ -252,29 +258,47 @@ def train_net(net,
         # scheduler = lr_exp_decay(optimizer, lr, 0.04, epoch)
         print(scheduler, file=outfile_log, flush=True)
 
+        scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+
         net.train()
         epoch_loss = 0
         epoch_dice = 0
         for imgs, true_masks in tqdm(train_loader):
-            if dtype == "float16":
-                imgs = imgs.astype(np.float16)
-            else:
-                imgs = imgs.astype(np.float32)
+#            if dtype == "float16":
+#                imgs = imgs.astype(np.float16)
+#                true_masks = true_masks.astype(np.float16)
+#                imgs = torch.tensor(imgs, dtype=torch.float32)
+#                true_masks = torch.tensor(true_masks, dtype=torch.float32)
+#            else:
+#                #imgs = imgs.astype(np.float32)
+#                #true_masks = true_masks.astype(np.float32)
+#                imgs = torch.tensor(imgs, dtype=torch.float32)
+#                true_masks = torch.tensor(true_masks, dtype=torch.float32)
 
             if gpu:
                 imgs       = imgs.cuda()
                 true_masks = true_masks.cuda()
 
-            masks_pred       = net(imgs)
-            masks_probs_flat = masks_pred.view(-1)
-            true_masks_flat  = true_masks.view(-1)
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            with torch.autocast(device_type=device, dtype=torch.float16, enabled=use_amp):
+               masks_pred       = net(imgs)
+               masks_probs_flat = masks_pred.view(-1)
+               true_masks_flat  = true_masks.view(-1)
 
-            loss = criterion(masks_probs_flat, true_masks_flat)
-            epoch_loss += loss.item()
+               #loss = criterion(masks_probs_flat, true_masks_flat)
+               # with logits
+               loss = criterion(masks_probs_flat, true_masks_flat)
+               epoch_loss += loss.item()
 
-            scheduler.zero_grad()
-            loss.backward()
-            scheduler.step()
+            scaler.scale(loss).backward()
+            #scheduler.zero_grad()
+            #scaler.step(scheduler)
+            scaler.step(optimizer)
+            scaler.update()
+
+            #scheduler.zero_grad()
+            #loss.backward()
+            #scheduler.step()
 
         epoch_loss = epoch_loss / len(train_loader)
         print('Epoch finished ! Loss: {:.6f}'.format(epoch_loss))
