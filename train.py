@@ -105,7 +105,6 @@ def train_net(net,
           file=outfile_log, flush=True)
 
     files_samples    = os.listdir(train_dir)
-    files_samples    = [f for f in files_samples if 'tpc0' in f]
     files_img        = [f for f in files_samples if 'rec' in f][:ntrainfiles]
     files_mask       = [f.replace("rec","tru") for f in files_img]
     files_img         = [os.path.join(train_dir, f) for f in files_img]
