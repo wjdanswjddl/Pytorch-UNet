@@ -48,3 +48,30 @@ h5dump-shared -n data/g4-rec-r9.h5
 python plot_epoch.py 1
 ./to-ts.py -m test0/CP49.pth
 ```
+
+## description of config.json
+
+"dir_checkpoint" : direcotry to save model checkpoints and logs
+
+"batch_size": training batch size
+"learning_rate": optimizer learning rate
+
+"train_dir": directory of training data
+"ntrainfiles": number of training files to be used for training
+
+"start_epoch": starting epoch
+"nepoch":      number of epochs
+"start_train": starting index of training data, per each file
+"ntrain":      number of training data, per each file
+"start_val":   starting index of validation data, per each file
+"nval":        number of validation data, per each file
+
+"scale":       scale factor for input data
+"x_range":     crop range for x-axis
+"y_range":     crop range for y-axis
+"z_scale":     scale factor for z-axis (pixel values)
+"truth_th":    threshold for truth data (pixel values)
+
+"im_tags": input data tags
+"ma_tags": mask data tags
+

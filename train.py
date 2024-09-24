@@ -64,23 +64,18 @@ def train_net(net,
               dir_checkpoint = "",
               batch_size     = 2,
               lr             = 0.1,
-              sample         = "",
-              target         = "",
-              test_dir       = "",
-              test_tags      = ["75-80"],
+              train_dir      = "",
+              ntrainfiles   = 100,
               sepoch         = 0,
               nepoch         = 1,
               strain         = 0,
               ntrain         = 10,
               sval           = 10,
               nval           = 1,
-              stest          = 0,
-              ntest          = 1,
               img_scale      = [1,10],
               x_range        = [0,1984],
               y_range        = [0,3500],
               z_scale        = 2000,
-              dtype          = "float32",
               truth_th       = 100,
               im_tags        = ['frame_loose_lf1', 'frame_mp2_roi1', 'frame_mp3_roi1'],
               ma_tags        = ['frame_deposplat1']):
@@ -109,12 +104,12 @@ def train_net(net,
                truth_th), 
           file=outfile_log, flush=True)
 
-    files_img       = sample
-    files_mask      = target
-    file_test_imgs  = [[test_dir+"/tpc0_plane0_{}_1000-rec.h5".format(tag) for tag in test_tags],
-                       [test_dir+"/tpc0_plane1_{}_1000-rec.h5".format(tag) for tag in test_tags]]
-    file_test_masks = [[test_dir+"/tpc0_plane0_{}_1000-tru.h5".format(tag) for tag in test_tags],
-                       [test_dir+"/tpc0_plane1_{}_1000-tru.h5".format(tag) for tag in test_tags]]
+    files_samples    = os.listdir(train_dir)
+    files_samples    = [f for f in files_samples if 'tpc0' in f]
+    files_img        = [f for f in files_samples if 'rec' in f][:ntrainfiles]
+    files_mask       = [f.replace("rec","tru") for f in files_img]
+    files_img         = [os.path.join(train_dir, f) for f in files_img]
+    files_mask        = [os.path.join(train_dir, f) for f in files_mask]
 
     print('''
     files_img: {}
@@ -125,19 +120,14 @@ def train_net(net,
     iddataset = {}
     iddataset['train'] = list(1+strain+np.arange(ntrain))
     iddataset['val']   = list(1+sval+np.arange(nval))
-    iddataset['test']   = list(1+stest+np.arange(ntest))
     np.random.shuffle(iddataset['train'])
     np.random.shuffle(iddataset['val'])
-    np.random.shuffle(iddataset['test'])
     N_train = len(iddataset['train'])
     N_val   = len(iddataset['val'])
-    N_test   = len(iddataset['test'])
     print(iddataset['train'], file=outfile_log, flush=True)
     print(iddataset['val'], file=outfile_log, flush=True)
-    print(iddataset['test'], file=outfile_log, flush=True)
     print("iddataset['train'] len = ", N_train)
     print("iddataset['val'] len = ", N_val)
-    print("iddataset['test'] len = ", N_test)
 
     print('''
     Starting training:
@@ -146,7 +136,6 @@ def train_net(net,
         Learning rate: {}
         Training size: {}
         Validation size: {}
-        Test size: {}
         Image scale: {}
         X range: {}
         Y range: {}
@@ -157,7 +146,6 @@ def train_net(net,
                lr, 
                N_train,
                N_val, 
-               N_test,
                str(img_scale),
                str(x_range),
                str(y_range),
@@ -230,22 +218,6 @@ def train_net(net,
         )
         val_loader = DataLoader(val_dataset, **data_loader_args)
 
-        tests_p0 = []
-        tests_p1 = []
-        for tidx, tag in enumerate(test_tags):
-            tests_p0.append(
-              zip(
-                h5u.get_chw_imgs(file_test_imgs[0][tidx], iddataset['test'], im_tags, img_scale, x_range, y_range, z_scale),
-                h5u.get_masks(file_test_masks[0][tidx],   iddataset['test'], ma_tags, img_scale, x_range, y_range, truth_th)
-              )
-            )
-            tests_p1.append(
-              zip(
-                h5u.get_chw_imgs(file_test_imgs[1][tidx], iddataset['test'], im_tags, img_scale, x_range, y_range, z_scale),
-                h5u.get_masks(file_test_masks[1][tidx],   iddataset['test'], ma_tags, img_scale, x_range, y_range, truth_th)
-              )
-            )
-
         # train
 
         scheduler = optimizer
@@ -304,46 +276,6 @@ def train_net(net,
             writer.add_scalar('loss/validation', val_loss, epoch)
             writer.add_scalar('dice/validation', val_dice, epoch)
 
-            # test on prolonged tracks
-            test_perf_p0 = {}
-            test_perf_p1 = {}
-            for tidx in range(len(test_tags)):
-                # plane 0 
-                test1_p0, test2_p0 = itertools.tee(tests_p0[tidx], 2)
-
-                ep = eval_eff_pur(net, test1_p0, 0.5, args.gpu)
-                print('plane 0, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(test_tags[tidx], ep[0], ep[1], ep[2], ep[3]))
-                print('plane 0, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(test_tags[tidx], ep[0], ep[1], ep[2], ep[3]), file=outfile_ep, flush=True)
-                writer.add_scalar('test/plane0-{}-pixel_eff'.format(test_tags[tidx]), ep[0], epoch)
-                writer.add_scalar('test/plane0-{}-pixel_pur'.format(test_tags[tidx]), ep[1], epoch)
-                test_perf_p0[test_tags[tidx]] = [ep[0], ep[1], ep[2], ep[3]]
-
-                true_img, pred_img = eval_img(net, test2_p0, gpu)
-                test_true_img, test_pred_img = log_fig(true_img, pred_img)
-                writer.add_figure("test/plane0-{}-true".format(test_tags[tidx]), test_true_img, epoch)
-                writer.add_figure("test/plane0-{}-pred".format(test_tags[tidx]), test_pred_img, epoch)
-
-                # plane 1
-                test1_p1, test2_p1 = itertools.tee(tests_p1[tidx], 2)
-
-                ep = eval_eff_pur(net, test1_p1, 0.5, args.gpu)
-                print('plane 1, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(test_tags[tidx], ep[0], ep[1], ep[2], ep[3]))
-                print('plane 1, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}'.format(test_tags[tidx], ep[0], ep[1], ep[2], ep[3]), file=outfile_ep, flush=True)
-                writer.add_scalar('test/plane1-{}-pixel_eff'.format(test_tags[tidx]), ep[0], epoch)
-                writer.add_scalar('test/plane1-{}-pixel_pur'.format(test_tags[tidx]), ep[1], epoch)
-                test_perf_p1[test_tags[tidx]] = [ep[0], ep[1], ep[2], ep[3]]
-
-                true_img, pred_img = eval_img(net, test2_p1, gpu)
-                test_true_img, test_pred_img = log_fig(true_img, pred_img)
-                writer.add_figure("test/plane1-{}-true".format(test_tags[tidx]), test_true_img, epoch)
-                writer.add_figure("test/plane1-{}-pred".format(test_tags[tidx]), test_pred_img, epoch)
-
-            test_perf_p0 = pd.DataFrame.from_dict(test_perf_p0)
-            test_perf_p1 = pd.DataFrame.from_dict(test_perf_p1)
-            eff_img, pur_img = ep_fig(test_perf_p0, test_perf_p1, test_tags)
-            writer.add_figure("test/pixel_eff", eff_img, epoch)
-            writer.add_figure("test/pixel_pur", pur_img, epoch)
-
 
 def read_config(cfgname):
     config = None
@@ -393,23 +325,18 @@ if __name__ == '__main__':
                   dir_checkpoint = config["dir_checkpoint"],
                   batch_size     = config["batch_size"],
                   lr             = config["learning_rate"],
-                  sample         = config["sample"],
-                  target         = config["target"],
-                  test_dir       = config["test_dir"],
-                  test_tags      = config["test_tags"],
+                  train_dir      = config["train_dir"],
+                  ntrainfiles    = config["ntrainfiles"],
                   sepoch         = config["start_epoch"],
                   nepoch         = config["nepoch"],
                   strain         = config["start_train"],
                   ntrain         = config["ntrain"],
                   sval           = config["start_val"],
                   nval           = config["nval"],
-                  stest          = config["start_test"],
-                  ntest          = config["ntest"],
                   img_scale      = config["scale"],
                   x_range        = config["x_range"],
                   y_range        = config["y_range"],
                   z_scale        = config["z_scale"],
-                  dtype          = config["dtype"],
                   truth_th       = config["truth_th"],
                   im_tags        = config["im_tags"],
                   ma_tags        = config["ma_tags"],

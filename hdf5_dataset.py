@@ -25,18 +25,8 @@ class HDF5Dataset(Dataset):
     def __getitem__(self, index):
         fileno = index // len(self.indices)
         this_ID = index % len(self.indices) + 1 + np.min(self.indices)
-        #print("index", index)
-        #print("fileno", fileno)
-        #print("file", self.files_img[fileno])
-        #print("this_ID", this_ID)
-        if "tpc1" in self.files_img[fileno]:
-            this_img_tags = [tag.replace("0", "1") for tag in self.img_tags]
-            this_mask_tags = [tag.replace("0", "1") for tag in self.mask_tags]
-        elif "tpc0" in self.files_img[fileno]:
-            this_img_tags = [tag.replace("1", "0") for tag in self.img_tags]
-            this_mask_tags = [tag.replace("1", "0") for tag in self.mask_tags]
 
-        imgs = list(h5u.get_chw_imgs(self.files_img[fileno], [this_ID], this_img_tags, self.rebin, self.x_range, self.y_range, self.z_scale))[0]
-        masks = list(h5u.get_masks(self.files_mask[fileno], [this_ID], this_mask_tags, self.rebin, self.x_range, self.y_range, self.truth_th))[0]
+        imgs = list(h5u.get_chw_imgs(self.files_img[fileno], [this_ID], self.img_tags, self.rebin, self.x_range, self.y_range, self.z_scale))[0]
+        masks = list(h5u.get_masks(self.files_mask[fileno], [this_ID], self.mask_tags, self.rebin, self.x_range, self.y_range, self.truth_th))[0]
         
         return torch.tensor(imgs, dtype=torch.float32), torch.tensor(masks, dtype=torch.float32)
