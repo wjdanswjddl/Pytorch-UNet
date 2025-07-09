@@ -34,7 +34,7 @@ def eval_loss(net, criterion, loader, gpu=False):
         tot += loss.item()
     return tot / len(loader)
 
-def eval_dice_loss(net, loader, criterion, gpu=False):
+def eval_loss_dice(net, loader, criterion, gpu=False):
     """Evaluation without the densecrf with the dice coefficient"""
     tot_dice = 0
     tot_loss = 0

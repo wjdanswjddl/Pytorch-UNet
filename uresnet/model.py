@@ -4,17 +4,17 @@ import torch.nn.functional as F
 
 from .parts import *
 
-class UResNet(nn.Module):
+class LighterUResNet(nn.Module):
     def __init__(self, input_channels, output_channels):
-        super(UResNet, self).__init__()
-        self.inc = inconv(input_channels, 64)
-        self.down1 = down(64, 128)
-        self.down2 = down(128, 256)
-        self.down3 = down(256, 256)
-        self.up2 = up(512, 128)
-        self.up3 = up(256, 64)
-        self.up4 = up(128, 64)
-        self.outc = outconv(64, output_channels)
+        super(LighterUResNet, self).__init__()
+        self.inc = inconv(input_channels, 12)
+        self.down1 = down(12, 24)
+        self.down2 = down(24, 48)
+        self.down3 = down(48, 48)
+        self.up2 = up(96, 24)
+        self.up3 = up(48, 12)
+        self.up4 = up(24, 12)
+        self.outc = outconv(12, output_channels)
 
     def forward(self, x):
         x1 = self.inc(x)
